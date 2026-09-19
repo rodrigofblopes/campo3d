@@ -3,22 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Elétrica Térreo 3D — 3DCampo</title>
-<meta name="description" content="Visualizador 3D do modelo elétrico do térreo para análise do serviço a ser executado em campo.">
+<title>Elétrica 3D — Obra do Fábio</title>
+<meta name="description" content="Visualizador 3D das instalações elétricas da obra do Fábio, por pavimento, para análise do serviço a ser executado em campo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#eef2f6;
-    --panel:#ffffff;
-    --panel-2:#f5f7fa;
-    --text:#0d1b2a;
-    --text-dim:#52657a;
-    --border:#cdd8e3;
-    --accent:#c9700f;
-    --accent-ink:#fff7ec;
-    --viewport:#0a1929;
+    --bg:#eef2f6;--panel:#ffffff;--panel-2:#f5f7fa;--text:#0d1b2a;--text-dim:#52657a;
+    --border:#cdd8e3;--accent:#c9700f;--accent-ink:#fff7ec;--viewport:#0a1929;
     --shadow:0 8px 24px -8px rgba(13,27,42,0.18);
   }
   @media (prefers-color-scheme: dark){
@@ -35,34 +28,37 @@
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
-  body{
-    background:var(--bg);color:var(--text);
-    font-family:"Public Sans",system-ui,-apple-system,Segoe UI,Arial,sans-serif;
-    overflow:hidden;
-  }
+  body{background:var(--bg);color:var(--text);font-family:"Public Sans",system-ui,-apple-system,Segoe UI,Arial,sans-serif;overflow:hidden;}
   .app{position:fixed;inset:0;display:flex;flex-direction:column;
     padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
 
-  .topbar{flex:none;display:flex;align-items:center;gap:14px;padding:10px 16px;
+  .topbar{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 16px;
     padding-top:calc(10px + env(safe-area-inset-top,0px));
     background:var(--panel);border-bottom:1px solid var(--border);z-index:20;}
   .brand{display:flex;align-items:baseline;gap:10px;min-width:0;}
-  .brand .mark{font-family:"Archivo",sans-serif;font-weight:800;font-size:14px;letter-spacing:.06em;color:var(--accent);white-space:nowrap;}
+  .brand .mark{font-family:"Archivo",sans-serif;font-weight:800;font-size:13px;letter-spacing:.07em;color:var(--accent);white-space:nowrap;text-transform:uppercase;}
   .brand h1{font-family:"Archivo",sans-serif;font-weight:700;font-size:16px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .brand .file{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;}
   @media (min-width:640px){ .brand .file{ display:inline; } }
+
+  .floor-switch{display:flex;gap:3px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:3px;flex:none;}
+  .floor-btn{border:none;background:transparent;padding:6px 11px;border-radius:7px;font-family:"Public Sans",sans-serif;font-size:12px;font-weight:600;color:var(--text-dim);cursor:pointer;white-space:nowrap;}
+  .floor-btn.active{background:var(--accent);color:var(--accent-ink);}
+  .floor-btn:disabled{cursor:default;opacity:.55;}
+  .floor-btn .soon{font-size:8.5px;text-transform:uppercase;letter-spacing:.05em;margin-left:6px;opacity:.85;}
+
   .topbar-spacer{flex:1;}
   .stat-chip{display:flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text-dim);background:var(--panel-2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;white-space:nowrap;}
   .stat-chip b{color:var(--text);font-weight:600;}
   .stats-row{display:none;gap:8px;}
-  @media (min-width:860px){ .stats-row{ display:flex; } }
+  @media (min-width:960px){ .stats-row{ display:flex; } }
   .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);cursor:pointer;flex:none;}
   .icon-btn:hover{border-color:var(--accent);}
   .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;}
 
   .stage{position:relative;flex:1;min-height:0;background:var(--viewport);}
   #canvas-holder{position:absolute;inset:0;}
-  #canvas-holder canvas{display:block;width:100%;height:100%;}
+  #canvas-holder canvas{display:block;width:100%;height:100%;touch-action:none;}
 
   #loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--viewport);color:#dfe9f5;font-family:"IBM Plex Mono",monospace;z-index:30;transition:opacity .35s ease;}
   #loading .mono-label{font-size:12px;letter-spacing:.08em;color:#7f97b3;text-transform:uppercase;}
@@ -97,6 +93,11 @@
   .search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--text-dim);fill:none;stroke-width:2;}
   .search-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--text-dim);}
   .search-meta button{font-family:"Public Sans",sans-serif;font-size:11px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;}
+  .cat-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .cat-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--panel-2);border-radius:999px;padding:5px 10px;font-family:"Public Sans",sans-serif;font-size:11.5px;font-weight:600;color:var(--text-dim);cursor:pointer;}
+  .cat-chip .swatch{width:9px;height:9px;border-radius:50%;flex:none;}
+  .cat-chip.active{border-color:var(--accent);color:var(--text);}
+  .cat-chip .n{font-family:"IBM Plex Mono",monospace;color:var(--text-dim);}
   .panel-body{flex:1;min-height:0;overflow-y:auto;padding:6px 8px 14px;}
   .tree-node{margin:1px 0;}
   .tree-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:7px;cursor:pointer;font-size:12.5px;}
@@ -123,17 +124,44 @@
   ::-webkit-scrollbar{width:9px;height:9px;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px;}
   ::-webkit-scrollbar-track{background:transparent;}
-  @media (max-width:640px){ #panel{width:100%;max-width:100%;} .brand h1{font-size:14px;} }
+  .panel-handle{display:none;flex:none;justify-content:center;padding:9px 0 3px;cursor:grab;}
+  .panel-handle span{width:36px;height:4px;border-radius:2px;background:var(--border);}
+
+  @media (max-width:640px){
+    .brand{flex-direction:column;align-items:flex-start;gap:1px;}
+    .brand .mark{font-size:10.5px;}
+    .brand h1{font-size:14px;}
+
+    .icon-btn{width:42px;height:42px;}
+    .icon-btn svg{width:20px;height:20px;}
+    .floor-btn{padding:8px 13px;font-size:12.5px;}
+    .cat-chip{padding:7px 12px;font-size:12.5px;}
+    .search-wrap input{padding:11px 10px 11px 34px;font-size:14px;}
+
+    .panel-handle{display:flex;}
+    #panel{
+      top:auto;left:0;right:0;bottom:0;
+      width:100%;max-width:100%;
+      height:68vh;
+      border-left:none;
+      border-top:1px solid var(--border);
+      border-radius:16px 16px 0 0;
+      transform:translateY(0);
+      padding-bottom:env(safe-area-inset-bottom,0px);
+    }
+    #panel.closed{transform:translateY(100%);}
+  }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="topbar">
     <div class="brand">
-      <span class="mark">3DCAMPO</span>
-      <h1>Elétrica &mdash; Térreo</h1>
-      <span class="file" id="file-name">Terreo-Fabio.glb</span>
+      <span class="mark">Obra &mdash; Fábio e Brunielly (L14Q13)</span>
+      <h1 id="floor-title">Térreo</h1>
+      <span class="file" id="file-name"></span>
     </div>
+    <div class="floor-switch" id="floor-switch"></div>
     <div class="topbar-spacer"></div>
     <div class="stats-row" id="stats-row"></div>
     <button class="icon-btn" id="theme-btn" title="Alternar tema da interface">
@@ -185,8 +213,10 @@
   </div>
 
   <div id="panel">
+    <div class="panel-handle" id="panel-handle"><span></span></div>
     <div class="panel-head">
       <h2>Elementos do modelo</h2>
+      <div class="cat-filters" id="cat-filters"></div>
       <div class="search-wrap">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         <input id="search" type="text" placeholder="Buscar (ex: tomada, eletroduto, quadro)" autocomplete="off">
@@ -216,8 +246,15 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const MODEL_URL = 'Terreo-Fabio.glb';
-const MODEL_LABEL = 'Terreo-Fabio.glb';
+/* ---------------- Pavimentos ----------------
+   Cada obra tem vários pavimentos. Hoje só o Térreo tem modelo publicado;
+   quando o 1º Pavimento estiver pronto, suba o .glb nesta mesma pasta e
+   troque "available" para true apontando "file" para esse arquivo. */
+const FLOORS = [
+  { id: 'terreo', label: 'Térreo', file: 'Terreo-Fabio.glb', available: true },
+  { id: 'pav1', label: '1º Pavimento', file: null, available: false },
+];
+let currentFloor = null;
 
 const holder = document.getElementById('canvas-holder');
 const themeRoot = document.documentElement;
@@ -230,10 +267,12 @@ holder.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const VIEWPORT_DARK = 0x0a1929;
-const VIEWPORT_LIGHT = 0xd7e2ec;
-let bgIsDark = true;
-scene.background = new THREE.Color(VIEWPORT_DARK);
-scene.fog = new THREE.Fog(VIEWPORT_DARK, 40, 220);
+const VIEWPORT_LIGHT = 0xf4f6f8;
+const GRID_DARK = [0x2f537a, 0x1c3654];
+const GRID_LIGHT = [0x9aa7b3, 0xd3d9de];
+let bgIsDark = false;
+scene.background = new THREE.Color(VIEWPORT_LIGHT);
+scene.fog = new THREE.Fog(VIEWPORT_LIGHT, 40, 220);
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 5000);
 camera.position.set(8, 7, 10);
@@ -253,9 +292,13 @@ const dir2 = new THREE.DirectionalLight(0x6f9fd8, 0.5);
 dir2.position.set(-14, 6, -10);
 scene.add(dir2);
 
-const grid = new THREE.GridHelper(200, 80, 0x2f537a, 0x1c3654);
-grid.material.transparent = true;
-grid.material.opacity = 0.55;
+function makeGrid(colors){
+  const g = new THREE.GridHelper(200, 80, colors[0], colors[1]);
+  g.material.transparent = true;
+  g.material.opacity = 0.55;
+  return g;
+}
+let grid = makeGrid(GRID_LIGHT);
 scene.add(grid);
 
 const modelGroup = new THREE.Group();
@@ -276,60 +319,57 @@ resize();
   renderer.render(scene, camera);
 })();
 
-/* ---------------- Loading ---------------- */
+/* ---------------- DOM refs ---------------- */
 const loadingEl = document.getElementById('loading');
 const pctEl = document.getElementById('load-pct');
 const barEl = document.getElementById('load-bar');
 const errEl = document.getElementById('load-error');
+const treeRoot = document.getElementById('tree-root');
+const searchInput = document.getElementById('search');
+const searchCount = document.getElementById('search-count');
+const searchClear = document.getElementById('search-clear');
+const selBar = document.getElementById('sel-bar');
+const selName = document.getElementById('sel-name');
+const selPath = document.getElementById('sel-path');
+const floorTitle = document.getElementById('floor-title');
+const fileNameEl = document.getElementById('file-name');
+const floorSwitchEl = document.getElementById('floor-switch');
 
 let meshIndex = [];
 let allMeshes = [];
 let fitSphere = new THREE.Sphere(new THREE.Vector3(), 5);
-let modelBytes = 0;
-
-document.getElementById('file-name').textContent = MODEL_LABEL;
-
+let outlineMesh = null;
 const loader = new GLTFLoader();
-loader.load(
-  MODEL_URL,
-  (gltf) => {
-    const root = gltf.scene || gltf.scenes[0];
 
-    const box = new THREE.Box3().setFromObject(root);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    root.position.sub(center);
-
-    modelGroup.add(root);
-
-    box.setFromObject(modelGroup);
-    box.getBoundingSphere(fitSphere);
-    frameToSphere(fitSphere);
-
-    buildIndex(root);
-    buildTree(root);
-    fillStats(size, allMeshes.length);
-
-    loadingEl.classList.add('hide');
-  },
-  (evt) => {
-    if (evt.total) {
-      modelBytes = evt.total;
-      const p = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
-      pctEl.textContent = p + '%';
-      barEl.style.width = p + '%';
-    }
-  },
-  (err) => showLoadError(err)
-);
-
-function showLoadError(err){
-  console.error(err);
-  pctEl.textContent = '';
-  document.querySelector('#loading .mono-label').textContent = 'Falha ao carregar';
-  errEl.style.display = 'block';
-  errEl.textContent = 'Não foi possível carregar "' + MODEL_URL + '". Confirme que o arquivo está na mesma pasta desta página.';
+/* ---------------- Categorias (estrutura / conduítes / tomadas) ----------------
+   O modelo não traz materiais do Revit — os nomes de família é que carregam
+   a informação. Classificamos por padrão de texto e pintamos cada grupo. */
+const CATEGORY_STYLE = {
+  estrutura: { color: 0x9aa4b2, metalness: 0.55, roughness: 0.5, opacity: 0.55, label: 'Estrutura LSF' },
+  conduite:  { color: 0xffc72c, metalness: 0.05, roughness: 0.4, opacity: 1, label: 'Conduítes' },
+  tomada:    { color: 0xf2efe8, metalness: 0.05, roughness: 0.35, opacity: 1, label: 'Tomadas' },
+  outro:     { color: 0xb6bec8, metalness: 0.25, roughness: 0.6, opacity: 1, label: 'Outros' },
+};
+const CATEGORY_ORDER = ['estrutura', 'conduite', 'tomada', 'outro'];
+const categoryMaterials = {};
+function materialFor(cat){
+  if (!categoryMaterials[cat]) {
+    const s = CATEGORY_STYLE[cat];
+    categoryMaterials[cat] = new THREE.MeshStandardMaterial({
+      color: s.color, metalness: s.metalness, roughness: s.roughness,
+      transparent: (s.opacity ?? 1) < 1, opacity: s.opacity ?? 1,
+    });
+  }
+  return categoryMaterials[cat];
 }
+function categorize(fullPath){
+  const n = fullPath.toLowerCase();
+  if (/perfil|\blsf\b/.test(n)) return 'estrutura';
+  if (/conduite|eletroduto/.test(n)) return 'conduite';
+  if (/tomada/.test(n)) return 'tomada';
+  return 'outro';
+}
+let activeCats = new Set();
 
 function frameToSphere(sphere){
   const r = Math.max(sphere.radius, 0.5);
@@ -352,51 +392,159 @@ function buildIndex(root){
       const path = [];
       let p = obj;
       while (p && p !== modelGroup) { if (p.name) path.unshift(p.name); p = p.parent; }
+      const fullPath = path.join(' / ');
+      const cat = categorize(fullPath || obj.name || '');
+      obj.material = materialFor(cat);
       allMeshes.push(obj);
-      meshIndex.push({ mesh: obj, name: obj.name || '(sem nome)', path: path.join(' / ') });
+      meshIndex.push({ mesh: obj, name: obj.name || '(sem nome)', path: fullPath, cat });
     }
   });
 }
 
-function meaningfulChildren(obj){
-  const out = [];
-  for (const child of obj.children) {
-    let node = child;
-    while (!node.isMesh && node.children.length === 1 && !node.children[0].isMesh) {
-      node = node.children[0];
-    }
-    out.push(node);
+function renderCategoryFilters(){
+  const el = document.getElementById('cat-filters');
+  el.innerHTML = '';
+  const counts = {};
+  meshIndex.forEach((m) => { counts[m.cat] = (counts[m.cat] || 0) + 1; });
+  CATEGORY_ORDER.forEach((cat) => {
+    const n = counts[cat] || 0;
+    if (!n) return;
+    const style = CATEGORY_STYLE[cat];
+    const hex = '#' + style.color.toString(16).padStart(6, '0');
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'cat-chip' + (activeCats.has(cat) ? ' active' : '');
+    chip.innerHTML = '<span class="swatch" style="background:' + hex + '"></span>' + style.label + ' <span class="n">' + n + '</span>';
+    chip.addEventListener('click', () => {
+      if (activeCats.has(cat)) activeCats.delete(cat); else activeCats.add(cat);
+      renderCategoryFilters();
+      applyFilters();
+    });
+    el.appendChild(chip);
+  });
+}
+
+function applyFilters(){
+  const q = searchInput.value.trim().toLowerCase();
+  const box = new THREE.Box3();
+  let count = 0;
+  meshIndex.forEach((entry) => {
+    const matchesCat = activeCats.size === 0 || activeCats.has(entry.cat);
+    const matchesQuery = !q || (entry.name + ' ' + entry.path).toLowerCase().includes(q);
+    const visible = matchesCat && matchesQuery;
+    entry.mesh.visible = visible;
+    if (visible) { count++; box.expandByObject(entry.mesh); }
+  });
+  const filtering = !!q || activeCats.size > 0;
+  searchCount.textContent = filtering ? (count + (count === 1 ? ' item encontrado' : ' itens encontrados')) : '';
+  searchClear.style.display = filtering ? 'inline' : 'none';
+  if (filtering && count > 0) {
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    if (sphere.radius > 0) frameToSphere(sphere);
   }
-  return out;
 }
 
-function countMeshes(obj){
-  let n = 0;
-  obj.traverse((o) => { if (o.isMesh) n++; });
-  return n;
+function resetFilters(){
+  activeCats.clear();
+  searchInput.value = '';
+  renderCategoryFilters();
+  applyFilters();
+  frameToSphere(fitSphere);
 }
 
-const treeRoot = document.getElementById('tree-root');
+/* A árvore mostra só duas frentes de trabalho: Estrutura LSF e Elétrica
+   (conduítes + tomadas). O resto do modelo continua visível na cena, só
+   não some poluindo esta lista. */
+const TREE_ITEM_CAP = 300;
 
-function buildTree(root){
+function buildTree(){
   treeRoot.innerHTML = '';
-  const top = meaningfulChildren(root);
-  const list = top.length ? top : [root];
-  list.forEach((node) => treeRoot.appendChild(renderNode(node, 0)));
+  const groups = { estrutura: [], eletrica: [] };
+  meshIndex.forEach((entry) => {
+    if (entry.cat === 'estrutura') groups.estrutura.push(entry);
+    else if (entry.cat === 'conduite' || entry.cat === 'tomada') groups.eletrica.push(entry);
+  });
+  const defs = [
+    { label: 'Estrutura LSF', items: groups.estrutura },
+    { label: 'Elétrica', items: groups.eletrica },
+  ];
+  let any = false;
+  defs.forEach((def) => {
+    if (!def.items.length) return;
+    any = true;
+    treeRoot.appendChild(renderGroup(def.label, def.items));
+  });
+  if (!any) treeRoot.innerHTML = '<div class="empty-hint">Nenhum elemento reconhecido neste pavimento.</div>';
 }
 
-function renderNode(obj, depth){
+function bestLabel(entry){
+  const segs = entry.path ? entry.path.split(' / ') : [];
+  for (let i = segs.length - 1; i >= 0; i--) {
+    if (categorize(segs[i]) !== 'outro') return segs[i];
+  }
+  return (entry.name && entry.name !== '(sem nome)') ? entry.name : (segs[segs.length - 1] || entry.name);
+}
+
+function renderGroup(label, items){
   const wrap = document.createElement('div');
   wrap.className = 'tree-node';
 
+  const childrenEl = document.createElement('div');
+  childrenEl.className = 'tree-children';
+  items.slice(0, TREE_ITEM_CAP).forEach((entry) => childrenEl.appendChild(renderLeaf(entry)));
+  if (items.length > TREE_ITEM_CAP) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.style.padding = '8px 4px';
+    hint.textContent = '+' + (items.length - TREE_ITEM_CAP) + ' itens — use a busca acima para achar um específico.';
+    childrenEl.appendChild(hint);
+  }
+
   const row = document.createElement('div');
   row.className = 'tree-row';
+  row.appendChild(svgIcon('M9 6l6 6-6 6', 'caret'));
 
-  const kids = obj.isMesh ? [] : meaningfulChildren(obj);
-  const isLeaf = kids.length === 0;
+  const groupVis = document.createElement('span');
+  groupVis.className = 'vis on';
+  groupVis.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"></polyline></svg>';
+  groupVis.title = 'Mostrar/ocultar grupo inteiro';
+  groupVis.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const nowVisible = !groupVis.classList.contains('on');
+    groupVis.classList.toggle('on', nowVisible);
+    items.forEach((entry) => { entry.mesh.visible = nowVisible; });
+    childrenEl.querySelectorAll('.vis').forEach((v) => v.classList.toggle('on', nowVisible));
+  });
+  row.appendChild(groupVis);
 
-  const caret = svgIcon('M9 6l6 6-6 6', isLeaf ? 'caret leaf' : 'caret');
-  row.appendChild(caret);
+  const labelEl = document.createElement('span');
+  labelEl.className = 'label';
+  labelEl.style.fontWeight = '700';
+  labelEl.textContent = label;
+  row.appendChild(labelEl);
+
+  const count = document.createElement('span');
+  count.className = 'count';
+  count.textContent = items.length;
+  row.appendChild(count);
+
+  wrap.appendChild(row);
+  wrap.appendChild(childrenEl);
+
+  row.addEventListener('click', () => {
+    const open = childrenEl.classList.toggle('open');
+    row.classList.toggle('expanded', open);
+  });
+
+  return wrap;
+}
+
+function renderLeaf(entry){
+  const wrap = document.createElement('div');
+  wrap.className = 'tree-node';
+  const row = document.createElement('div');
+  row.className = 'tree-row';
+  row.appendChild(svgIcon('M9 6l6 6-6 6', 'caret leaf'));
 
   const vis = document.createElement('span');
   vis.className = 'vis on';
@@ -404,40 +552,18 @@ function renderNode(obj, depth){
   vis.title = 'Mostrar/ocultar';
   vis.addEventListener('click', (e) => {
     e.stopPropagation();
-    obj.visible = !obj.visible;
-    vis.classList.toggle('on', obj.visible);
+    entry.mesh.visible = !entry.mesh.visible;
+    vis.classList.toggle('on', entry.mesh.visible);
   });
   row.appendChild(vis);
 
   const label = document.createElement('span');
   label.className = 'label';
-  label.textContent = obj.name || (obj.isMesh ? '(malha sem nome)' : '(grupo)');
+  label.textContent = bestLabel(entry);
   row.appendChild(label);
 
-  if (depth < 2) {
-    const count = document.createElement('span');
-    count.className = 'count';
-    count.textContent = countMeshes(obj);
-    row.appendChild(count);
-  }
-
+  row.addEventListener('click', () => selectMesh(entry.mesh, true));
   wrap.appendChild(row);
-
-  let childrenEl = null;
-  if (!isLeaf) {
-    childrenEl = document.createElement('div');
-    childrenEl.className = 'tree-children';
-    kids.slice(0, 400).forEach((k) => childrenEl.appendChild(renderNode(k, depth + 1)));
-    wrap.appendChild(childrenEl);
-
-    row.addEventListener('click', () => {
-      const open = childrenEl.classList.toggle('open');
-      row.classList.toggle('expanded', open);
-    });
-  } else if (obj.isMesh) {
-    row.addEventListener('click', () => selectMesh(obj, true));
-  }
-
   return wrap;
 }
 
@@ -449,11 +575,6 @@ function svgIcon(path, cls){
 }
 
 /* ---------------- Selection + outline ---------------- */
-let outlineMesh = null;
-const selBar = document.getElementById('sel-bar');
-const selName = document.getElementById('sel-name');
-const selPath = document.getElementById('sel-path');
-
 function clearSelection(){
   if (outlineMesh) { modelGroup.remove(outlineMesh); outlineMesh.geometry.dispose(); outlineMesh = null; }
   selBar.classList.remove('show');
@@ -503,43 +624,12 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 });
 
 /* ---------------- Search ---------------- */
-const searchInput = document.getElementById('search');
-const searchCount = document.getElementById('search-count');
-const searchClear = document.getElementById('search-clear');
+searchInput.addEventListener('input', applyFilters);
 
-searchInput.addEventListener('input', () => {
-  const q = searchInput.value.trim().toLowerCase();
-  searchClear.style.display = q ? 'inline' : 'none';
-  if (!q) {
-    allMeshes.forEach((m) => (m.visible = true));
-    searchCount.textContent = '';
-    return;
-  }
-  let matches = 0;
-  const box = new THREE.Box3();
-  let any = false;
-  meshIndex.forEach(({ mesh, name, path }) => {
-    const hit = (name + ' ' + path).toLowerCase().includes(q);
-    mesh.visible = hit;
-    if (hit) { matches++; box.expandByObject(mesh); any = true; }
-  });
-  searchCount.textContent = matches + (matches === 1 ? ' item encontrado' : ' itens encontrados');
-  if (any) {
-    const sphere = box.getBoundingSphere(new THREE.Sphere());
-    if (sphere.radius > 0) frameToSphere(sphere);
-  }
-});
-
-searchClear.addEventListener('click', () => {
-  searchInput.value = '';
-  allMeshes.forEach((m) => (m.visible = true));
-  searchCount.textContent = '';
-  searchClear.style.display = 'none';
-  frameToSphere(fitSphere);
-});
+searchClear.addEventListener('click', resetFilters);
 
 /* ---------------- Stats ---------------- */
-function fillStats(size, meshCount){
+function fillStats(size, meshCount, sizeLabel){
   let tris = 0;
   allMeshes.forEach((m) => {
     const geo = m.geometry;
@@ -547,7 +637,6 @@ function fillStats(size, meshCount){
     tris += geo.index ? geo.index.count / 3 : posCount / 3;
   });
   tris = Math.round(tris);
-  const sizeLabel = modelBytes ? (modelBytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB' : '—';
 
   document.getElementById('stats-row').innerHTML =
     chip('Triângulos', tris.toLocaleString('pt-BR')) +
@@ -555,13 +644,111 @@ function fillStats(size, meshCount){
     chip('Dimensões', size.x.toFixed(1) + ' × ' + size.z.toFixed(1) + ' × ' + size.y.toFixed(1) + ' m');
 
   document.getElementById('stats-foot').innerHTML =
-    kv('Arquivo', MODEL_LABEL) +
-    kv('Tamanho', sizeLabel) +
+    kv('Arquivo', currentFloor.file || '—') +
+    kv('Tamanho', sizeLabel || '—') +
     kv('Triângulos', tris.toLocaleString('pt-BR')) +
     kv('Elementos', meshCount.toLocaleString('pt-BR'));
 }
 function chip(label, val){ return '<span class="stat-chip">' + label + ': <b>' + val + '</b></span>'; }
 function kv(label, val){ return '<div class="kv"><span class="k">' + label + '</span><span class="v">' + val + '</span></div>'; }
+
+/* ---------------- Pavimentos: troca e carregamento ---------------- */
+function renderFloorSwitch(){
+  floorSwitchEl.innerHTML = '';
+  FLOORS.forEach((f) => {
+    const btn = document.createElement('button');
+    btn.className = 'floor-btn' + (currentFloor && currentFloor.id === f.id ? ' active' : '');
+    btn.disabled = !f.available;
+    btn.innerHTML = f.label + (f.available ? '' : '<span class="soon">em breve</span>');
+    if (f.available) {
+      btn.addEventListener('click', () => {
+        if (!currentFloor || currentFloor.id !== f.id) loadFloor(f);
+      });
+    }
+    floorSwitchEl.appendChild(btn);
+  });
+}
+
+function disposeCurrentModel(){
+  while (modelGroup.children.length) {
+    const child = modelGroup.children.pop();
+    child.traverse((o) => {
+      if (o.isMesh) {
+        o.geometry.dispose();
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m && m.dispose());
+      }
+    });
+  }
+}
+
+function loadFloor(floor){
+  currentFloor = floor;
+  renderFloorSwitch();
+  floorTitle.textContent = floor.label;
+  fileNameEl.textContent = floor.file || '';
+
+  clearSelection();
+  disposeCurrentModel();
+  meshIndex = [];
+  allMeshes = [];
+  activeCats = new Set();
+  searchInput.value = '';
+  searchCount.textContent = '';
+  searchClear.style.display = 'none';
+  document.getElementById('cat-filters').innerHTML = '';
+  treeRoot.innerHTML = '<div class="empty-hint">Carregando estrutura do modelo&hellip;</div>';
+
+  loadingEl.classList.remove('hide');
+  document.querySelector('#loading .mono-label').textContent = 'Carregando modelo';
+  errEl.style.display = 'none';
+  pctEl.textContent = '0%';
+  barEl.style.width = '0%';
+
+  let modelBytes = 0;
+
+  loader.load(
+    floor.file,
+    (gltf) => {
+      const root = gltf.scene || gltf.scenes[0];
+
+      const box = new THREE.Box3().setFromObject(root);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      root.position.sub(center);
+
+      modelGroup.add(root);
+
+      box.setFromObject(modelGroup);
+      box.getBoundingSphere(fitSphere);
+      frameToSphere(fitSphere);
+
+      buildIndex(root);
+      buildTree();
+      renderCategoryFilters();
+      const sizeLabel = modelBytes ? (modelBytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB' : '—';
+      fillStats(size, allMeshes.length, sizeLabel);
+
+      loadingEl.classList.add('hide');
+    },
+    (evt) => {
+      if (evt.total) {
+        modelBytes = evt.total;
+        const p = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+        pctEl.textContent = p + '%';
+        barEl.style.width = p + '%';
+      }
+    },
+    (err) => showLoadError(err)
+  );
+}
+
+function showLoadError(err){
+  console.error(err);
+  pctEl.textContent = '';
+  document.querySelector('#loading .mono-label').textContent = 'Falha ao carregar';
+  errEl.style.display = 'block';
+  errEl.textContent = 'Não foi possível carregar "' + currentFloor.file + '". Confirme que o arquivo está na mesma pasta desta página.';
+}
 
 /* ---------------- Toolbar ---------------- */
 let wireOn = false;
@@ -588,15 +775,19 @@ document.getElementById('btn-bg').addEventListener('click', () => {
   const c = bgIsDark ? VIEWPORT_DARK : VIEWPORT_LIGHT;
   scene.background = new THREE.Color(c);
   scene.fog.color = new THREE.Color(c);
+
+  const wasVisible = grid.visible;
+  scene.remove(grid);
+  grid.geometry.dispose();
+  grid.material.dispose();
+  grid = makeGrid(bgIsDark ? GRID_DARK : GRID_LIGHT);
+  grid.visible = wasVisible;
+  scene.add(grid);
 });
 
 document.getElementById('btn-reset').addEventListener('click', () => {
   clearSelection();
-  searchInput.value = '';
-  allMeshes.forEach((m) => (m.visible = true));
-  searchCount.textContent = '';
-  searchClear.style.display = 'none';
-  frameToSphere(fitSphere);
+  resetFilters();
 });
 
 document.getElementById('btn-full').addEventListener('click', () => {
@@ -615,6 +806,9 @@ document.getElementById('theme-btn').addEventListener('click', () => {
   if (themeMode === 'auto') themeRoot.removeAttribute('data-theme');
   else themeRoot.setAttribute('data-theme', themeMode);
 });
+
+/* ---------------- Início ---------------- */
+loadFloor(FLOORS.find((f) => f.available) || FLOORS[0]);
 </script>
 </body>
 </html>
