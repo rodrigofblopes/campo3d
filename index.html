@@ -348,9 +348,10 @@ const CATEGORY_STYLE = {
   estrutura: { color: 0x9aa4b2, metalness: 0.55, roughness: 0.5, opacity: 0.55, label: 'Estrutura LSF' },
   conduite:  { color: 0xffc72c, metalness: 0.05, roughness: 0.4, opacity: 1, label: 'Conduítes' },
   tomada:    { color: 0xf2efe8, metalness: 0.05, roughness: 0.35, opacity: 1, label: 'Tomadas' },
+  suporte:   { color: 0x5b8ac9, metalness: 0.5, roughness: 0.45, opacity: 1, label: 'Suportes de Caixa' },
   outro:     { color: 0xb6bec8, metalness: 0.25, roughness: 0.6, opacity: 1, label: 'Outros' },
 };
-const CATEGORY_ORDER = ['estrutura', 'conduite', 'tomada', 'outro'];
+const CATEGORY_ORDER = ['estrutura', 'conduite', 'tomada', 'suporte', 'outro'];
 const categoryMaterials = {};
 function materialFor(cat){
   if (!categoryMaterials[cat]) {
@@ -364,6 +365,7 @@ function materialFor(cat){
 }
 function categorize(fullPath){
   const n = fullPath.toLowerCase();
+  if (/perfil.*lsf/.test(n)) return 'suporte'; // perfis LSF usados como suporte de caixa elétrica
   if (/conduite|eletroduto|caixa/.test(n)) return 'conduite';
   if (/tomada/.test(n)) return 'tomada';
   return 'estrutura'; // neste modelo, tudo que não é elétrica é estrutura LSF
@@ -461,7 +463,7 @@ function buildTree(){
   const groups = { estrutura: [], eletrica: [] };
   meshIndex.forEach((entry) => {
     if (entry.cat === 'estrutura') groups.estrutura.push(entry);
-    else if (entry.cat === 'conduite' || entry.cat === 'tomada') groups.eletrica.push(entry);
+    else if (entry.cat === 'conduite' || entry.cat === 'tomada' || entry.cat === 'suporte') groups.eletrica.push(entry);
   });
   const defs = [
     { label: 'Estrutura LSF', items: groups.estrutura },
