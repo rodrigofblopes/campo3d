@@ -364,10 +364,9 @@ function materialFor(cat){
 }
 function categorize(fullPath){
   const n = fullPath.toLowerCase();
-  if (/perfil|\blsf\b/.test(n)) return 'estrutura';
-  if (/conduite|eletroduto/.test(n)) return 'conduite';
+  if (/conduite|eletroduto|caixa/.test(n)) return 'conduite';
   if (/tomada/.test(n)) return 'tomada';
-  return 'outro';
+  return 'estrutura'; // neste modelo, tudo que não é elétrica é estrutura LSF
 }
 let activeCats = new Set();
 
@@ -477,10 +476,11 @@ function buildTree(){
   if (!any) treeRoot.innerHTML = '<div class="empty-hint">Nenhum elemento reconhecido neste pavimento.</div>';
 }
 
+const DESCRIPTIVE_NAME = /perfil|lsf|conduite|eletroduto|tomada|caixa/i;
 function bestLabel(entry){
   const segs = entry.path ? entry.path.split(' / ') : [];
   for (let i = segs.length - 1; i >= 0; i--) {
-    if (categorize(segs[i]) !== 'outro') return segs[i];
+    if (DESCRIPTIVE_NAME.test(segs[i])) return segs[i];
   }
   return (entry.name && entry.name !== '(sem nome)') ? entry.name : (segs[segs.length - 1] || entry.name);
 }
