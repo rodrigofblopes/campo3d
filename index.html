@@ -455,24 +455,43 @@ function computeMeasurements(){
   });
 }
 
-/* Lê propriedades vindas do Revit (Comentários / Altura / Marca) que sobrevivem
-   à exportação Revit -> FBX -> Blender -> glTF como "Custom Properties" do Blender.
-   O three.js expõe isso automaticamente em mesh.userData (via node.extras do glTF).
+/* Lê propriedades vindas do Revit (Comentários / Altura / Elevação / Marca) que sobrevivem
+   à exportação para glTF/GLB (extras por node -> mesh.userData no three.js).
    Convenção do projeto:
-     - "Marca"       -> status de execução (Pendente / Executado)
-     - "Altura"      -> altura do ponto, quando informada manualmente no Revit
-     - "Comentários" -> nota livre (ex.: distância da parede) */
+     - "Marca"             -> status de execução (Pendente / Executado / Não conforme)
+     - "Altura"/"Elevação" -> altura do ponto, quando informada no Revit
+     - "Comentários"       -> nota livre (ex.: distância da parede)
+   Parâmetros de TIPO (prefixo "Type ..." — ex.: "Type Comentários de tipos") são
+   ignorados: são metadado da família/tipo, iguais para todo elemento daquele tipo,
+   não é dado da instância nem da vistoria. Um "cluster" de tomada (point) junta vários
+   nodes do glTF (o conjunto + seus módulos internos); o módulo interno tem sua própria
+   "Marca" (numeração automática do Revit, não é status) — por isso só aceitamos como
+   status um valor de Marca que realmente bate com Pendente/Executado/Não conforme. */
+function parseRevitNumber(raw){
+  if (raw === undefined || raw === null) return NaN;
+  const cleaned = String(raw).trim().replace(/\./g, '').replace(',', '.');
+  return parseFloat(cleaned);
+}
+
 function pointAnnotation(point){
   let altura = '', comentario = '', status = '';
   point.entries.forEach((e) => {
     const ud = e.mesh.userData || {};
     Object.keys(ud).forEach((k) => {
+      if (/^type[\s_]/i.test(k)) return; // parâmetro de Tipo, não de instância
       const val = ud[k];
       if (val === undefined || val === null || val === '') return;
       const key = k.toLowerCase();
-      if (!altura && /altura|height/.test(key)) altura = String(val);
+      if (!altura && /altura|height|eleva[cç][aã]o/.test(key)) {
+        const num = parseRevitNumber(val);
+        altura = isFinite(num) ? fmtDist(num) : String(val);
+      }
       if (!comentario && /coment|comment/.test(key)) comentario = String(val);
-      if (!status && /marca|mark/.test(key)) status = String(val);
+      if (/marca|mark/.test(key)) {
+        const s = String(val);
+        const norm = normalizeStatus(s);
+        if (!status && norm && norm.key !== 'outro') status = s;
+      }
     });
   });
   return { altura, comentario, status };
@@ -516,10 +535,14 @@ function statusChip(rawStatus){
 }
 
 function pointLabel(point){
-  const withId = point.entries.find((e) => /\[\d+\]/.test(e.name));
-  if (withId) {
-    const m = withId.name.match(/\[(\d+)\]/);
-    return 'Tomada ' + (m ? '#' + m[1] : withId.name);
+  const withElementId = point.entries.find((e) => e.mesh.userData && e.mesh.userData.elementId);
+  if (withElementId) {
+    return 'Tomada #' + withElementId.mesh.userData.elementId;
+  }
+  const withBracket = point.entries.find((e) => /\[\d+\]/.test(e.name));
+  if (withBracket) {
+    const m = withBracket.name.match(/\[(\d+)\]/);
+    return 'Tomada ' + (m ? '#' + m[1] : withBracket.name);
   }
   return bestLabel(point.entries[0]);
 }
