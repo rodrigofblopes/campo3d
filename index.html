@@ -82,10 +82,22 @@
   #sel-bar button{margin-left:auto;flex:none;background:none;border:none;color:#8ea0b5;cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;}
   #sel-bar{align-items:flex-start;}
   #sel-bar .dot{margin-top:5px;}
-  .sel-measures{display:none;flex-wrap:wrap;gap:3px 12px;margin-top:5px;}
+  .sel-measures{display:none;flex-wrap:wrap;align-items:center;gap:3px 12px;margin-top:5px;}
   .sel-measures.show{display:flex;}
   .sel-measures .m{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;white-space:nowrap;cursor:help;}
   .sel-measures .m b{color:#fff2df;font-weight:600;}
+  .sel-measures .status-chip{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;cursor:help;}
+  .sel-measures .status-chip .sdot{width:6px;height:6px;border-radius:50%;flex:none;}
+  .status-executado{background:rgba(46,204,113,0.16);color:#8beab0;}
+  .status-executado .sdot{background:#2ecc71;}
+  .status-pendente{background:rgba(255,176,32,0.16);color:#ffcf80;}
+  .status-pendente .sdot{background:#ffb020;}
+  .status-nao-conforme{background:rgba(255,90,90,0.16);color:#ffaaaa;}
+  .status-nao-conforme .sdot{background:#ff5a5a;}
+  .status-outro{background:rgba(142,160,181,0.16);color:#c7d3e0;}
+  .status-outro .sdot{background:#8ea0b5;}
+  .status-none{background:rgba(142,160,181,0.1);color:#8ea0b5;}
+  .status-none .sdot{background:#54637a;}
 
   .panel-toggle{position:absolute;right:12px;top:12px;z-index:15;background:rgba(19,28,40,0.82);border:1px solid rgba(255,255,255,0.08);color:#dfe9f5;}
 
@@ -443,11 +455,15 @@ function computeMeasurements(){
   });
 }
 
-/* Lê propriedades vindas do Revit (Comentários / Altura ou Marca) que sobrevivem
+/* Lê propriedades vindas do Revit (Comentários / Altura / Marca) que sobrevivem
    à exportação Revit -> FBX -> Blender -> glTF como "Custom Properties" do Blender.
-   O three.js expõe isso automaticamente em mesh.userData (via node.extras do glTF). */
+   O three.js expõe isso automaticamente em mesh.userData (via node.extras do glTF).
+   Convenção do projeto:
+     - "Marca"       -> status de execução (Pendente / Executado)
+     - "Altura"      -> altura do ponto, quando informada manualmente no Revit
+     - "Comentários" -> nota livre (ex.: distância da parede) */
 function pointAnnotation(point){
-  let altura = '', comentario = '';
+  let altura = '', comentario = '', status = '';
   point.entries.forEach((e) => {
     const ud = e.mesh.userData || {};
     Object.keys(ud).forEach((k) => {
@@ -455,11 +471,48 @@ function pointAnnotation(point){
       if (val === undefined || val === null || val === '') return;
       const key = k.toLowerCase();
       if (!altura && /altura|height/.test(key)) altura = String(val);
-      if (!altura && /marca|mark/.test(key)) altura = String(val);
       if (!comentario && /coment|comment/.test(key)) comentario = String(val);
+      if (!status && /marca|mark/.test(key)) status = String(val);
     });
   });
-  return { altura, comentario };
+  return { altura, comentario, status };
+}
+
+const HEIGHT_ROUND_STEP = 0.4; /* alturas estimadas são arredondadas para múltiplos de 40 cm */
+function roundToStep(value, step){
+  return Math.round(value / step) * step;
+}
+
+function normalizeStatus(raw){
+  const s = (raw || '').trim().toLowerCase();
+  if (!s) return null;
+  if (/execut/.test(s)) return { key: 'executado', label: 'Executado' };
+  if (/pendent/.test(s)) return { key: 'pendente', label: 'Pendente' };
+  if (/n[aã]o\s*conforme|reprov/.test(s)) return { key: 'nao-conforme', label: 'Não conforme' };
+  return { key: 'outro', label: raw.trim() };
+}
+
+function statusOutlineColor(rawStatus){
+  const norm = normalizeStatus(rawStatus);
+  if (norm && norm.key === 'executado') return 0x2ecc71;
+  if (norm && norm.key === 'nao-conforme') return 0xff5a5a;
+  return 0xffb020;
+}
+
+function statusChip(rawStatus){
+  const norm = normalizeStatus(rawStatus);
+  const span = document.createElement('span');
+  span.className = 'status-chip status-' + (norm ? norm.key : 'none');
+  span.title = norm
+    ? 'Status vindo da propriedade "Marca" no Revit.'
+    : 'Nenhum status definido no Revit (propriedade "Marca") para este ponto.';
+  const dot = document.createElement('span');
+  dot.className = 'sdot';
+  span.appendChild(dot);
+  const label = document.createElement('span');
+  label.textContent = norm ? norm.label : 'Sem status';
+  span.appendChild(label);
+  return span;
 }
 
 function pointLabel(point){
@@ -492,12 +545,14 @@ function renderMeasures(point){
   selMeasures.innerHTML = '';
   if (!point) { selMeasures.classList.remove('show'); return; }
   const ann = pointAnnotation(point);
-  const heightEstimate = fmtDist(point.center.y - floorLevelY);
+  const rawHeight = point.center.y - floorLevelY;
+  const heightEstimate = fmtDist(roundToStep(rawHeight, HEIGHT_ROUND_STEP));
 
+  selMeasures.appendChild(statusChip(ann.status));
   selMeasures.appendChild(measureChip(
     'Altura',
     ann.altura || (heightEstimate + ' (estimada)'),
-    ann.altura ? 'Altura informada no Revit (Comentários/Marca).' : 'Nenhuma altura vinda do Revit para este ponto — valor estimado pela geometria do modelo.'
+    ann.altura ? 'Altura informada no Revit.' : 'Nenhuma altura vinda do Revit para este ponto — valor estimado pela geometria do modelo, arredondado para múltiplos de 40 cm.'
   ));
   selMeasures.appendChild(measureChip(
     'Comentário',
@@ -690,9 +745,9 @@ function clearSelection(){
   document.querySelectorAll('.tree-row.selected').forEach((r) => r.classList.remove('selected'));
 }
 
-function outlineFor(mesh){
+function outlineFor(mesh, color){
   const edges = new THREE.EdgesGeometry(mesh.geometry, 20);
-  const mat = new THREE.LineBasicMaterial({ color: 0xffb020, linewidth: 2 });
+  const mat = new THREE.LineBasicMaterial({ color: color === undefined ? 0xffb020 : color, linewidth: 2 });
   const line = new THREE.LineSegments(edges, mat);
   mesh.updateWorldMatrix(true, false);
   line.applyMatrix4(mesh.matrixWorld);
@@ -705,7 +760,8 @@ function selectMesh(mesh, focus){
   const entry = meshIndex.find((m) => m.mesh === mesh);
   const point = entry && entry.cat === 'tomada' ? entry.pointGroup : null;
   const outlineTargets = point ? point.entries.map((e) => e.mesh) : [mesh];
-  outlineMeshes = outlineTargets.map(outlineFor);
+  const outlineColor = point ? statusOutlineColor(pointAnnotation(point).status) : 0xffb020;
+  outlineMeshes = outlineTargets.map((m) => outlineFor(m, outlineColor));
 
   selName.textContent = point ? pointLabel(point) : (entry ? entry.name : mesh.name || '(sem nome)');
   selPath.textContent = entry ? entry.path : '';
