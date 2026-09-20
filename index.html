@@ -299,7 +299,7 @@ camera.position.set(8, 7, 10);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 0.2;
+controls.minDistance = 0.02;
 controls.maxDistance = 800;
 
 const hemi = new THREE.HemisphereLight(0xdfe9f5, 0x0a1524, 1.1);
@@ -497,11 +497,6 @@ function pointAnnotation(point){
   return { altura, comentario, status };
 }
 
-const HEIGHT_ROUND_STEP = 0.4; /* alturas estimadas são arredondadas para múltiplos de 40 cm */
-function roundToStep(value, step){
-  return Math.round(value / step) * step;
-}
-
 function normalizeStatus(raw){
   const s = (raw || '').trim().toLowerCase();
   if (!s) return null;
@@ -564,23 +559,31 @@ function measureChip(label, value, title){
   return span;
 }
 
+function debugPointData(point){
+  console.group('[campo3d] Propriedades Revit do ponto selecionado (' + point.entries.length + ' node(s) agrupados)');
+  point.entries.forEach((e) => {
+    const ud = e.mesh.userData || {};
+    console.log(e.name, Object.keys(ud).length ? ud : '(sem extras/custom properties neste node)');
+  });
+  console.groupEnd();
+}
+
 function renderMeasures(point){
   selMeasures.innerHTML = '';
   if (!point) { selMeasures.classList.remove('show'); return; }
   const ann = pointAnnotation(point);
-  const rawHeight = point.center.y - floorLevelY;
-  const heightEstimate = fmtDist(roundToStep(rawHeight, HEIGHT_ROUND_STEP));
+  debugPointData(point);
 
   selMeasures.appendChild(statusChip(ann.status));
   selMeasures.appendChild(measureChip(
     'Altura',
-    ann.altura || (heightEstimate + ' (estimada)'),
-    ann.altura ? 'Altura informada no Revit.' : 'Nenhuma altura vinda do Revit para este ponto — valor estimado pela geometria do modelo, arredondado para múltiplos de 40 cm.'
+    ann.altura || '— sem altura no Revit —',
+    ann.altura ? 'Altura informada no Revit (Altura/Elevação do Ponto).' : 'Nenhuma altura vinda do Revit para este ponto (propriedade Altura/Elevação do Ponto vazia ou ausente).'
   ));
   selMeasures.appendChild(measureChip(
     'Comentário',
     ann.comentario || '— sem nota do Revit —',
-    'Comentário vindo do Revit, mantido na exportação Revit → FBX → Blender → glTF.'
+    'Comentário vindo do Revit (propriedade Comentários).'
   ));
   selMeasures.classList.add('show');
 }
