@@ -297,8 +297,9 @@ camera.position.set(8, 7, 10);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 0.02;
+controls.minDistance = 0.01;
 controls.maxDistance = 800;
+controls.zoomSpeed = 2.5;
 
 const hemi = new THREE.HemisphereLight(0xdfe9f5, 0x0a1524, 1.1);
 scene.add(hemi);
@@ -364,8 +365,8 @@ const loader = new GLTFLoader();
    O modelo não traz materiais do Revit — os nomes de família é que carregam
    a informação. Classificamos por padrão de texto e pintamos cada grupo. */
 const CATEGORY_STYLE = {
-  estrutura: { color: 0x9aa4b2, metalness: 0.55, roughness: 0.5, opacity: 0.55, label: 'Estrutura LSF' },
-  conduite:  { color: 0xffc72c, metalness: 0.05, roughness: 0.4, opacity: 1, label: 'Conduítes' },
+  estrutura: { color: 0x9aa4b2, metalness: 0.85, roughness: 0.28, opacity: 0.3, label: 'Estrutura LSF' },
+  conduite:  { color: 0xffd400, metalness: 0.05, roughness: 0.4, opacity: 1, label: 'Conduítes' },
   tomada:    { color: 0xf2efe8, metalness: 0.05, roughness: 0.35, opacity: 1, label: 'Tomadas' },
   suporte:   { color: 0x5b8ac9, metalness: 0.5, roughness: 0.45, opacity: 1, label: 'Suportes de Caixa' },
   outro:     { color: 0xb6bec8, metalness: 0.25, roughness: 0.6, opacity: 1, label: 'Outros' },
