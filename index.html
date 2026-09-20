@@ -410,6 +410,13 @@ function frameToSphere(sphere){
 function buildIndex(root){
   root.traverse((obj) => {
     if (obj.isMesh) {
+      /* Alguns exportadores (ex.: Leia/e-verse) não gravam normais de vértice no
+         glTF. Sem normal o three.js não tem como calcular luz na superfície e a
+         peça renderiza preta, seja qual for a cor do material — por isso
+         recalculamos aqui quando faltar. */
+      if (!obj.geometry.attributes.normal) {
+        obj.geometry.computeVertexNormals();
+      }
       const path = [];
       let p = obj;
       while (p && p !== modelGroup) { if (p.name) path.unshift(p.name); p = p.parent; }
