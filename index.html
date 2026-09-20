@@ -177,11 +177,9 @@
     <div class="brand">
       <span class="mark">Obra &mdash; Fábio e Brunielly (L14Q13)</span>
       <h1 id="floor-title">Térreo</h1>
-      <span class="file" id="file-name"></span>
     </div>
     <div class="floor-switch" id="floor-switch"></div>
     <div class="topbar-spacer"></div>
-    <div class="stats-row" id="stats-row"></div>
     <button class="icon-btn" id="theme-btn" title="Alternar tema da interface">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     </button>
@@ -248,7 +246,7 @@
     <div class="panel-body" id="tree-root">
       <div class="empty-hint">Carregando estrutura do modelo&hellip;</div>
     </div>
-    <div class="panel-foot" id="stats-foot"></div>
+
   </div>
 </div>
 
@@ -352,7 +350,6 @@ const selName = document.getElementById('sel-name');
 const selPath = document.getElementById('sel-path');
 const selMeasures = document.getElementById('sel-measures');
 const floorTitle = document.getElementById('floor-title');
-const fileNameEl = document.getElementById('file-name');
 const floorSwitchEl = document.getElementById('floor-switch');
 
 let meshIndex = [];
@@ -829,30 +826,6 @@ searchInput.addEventListener('input', applyFilters);
 
 searchClear.addEventListener('click', resetFilters);
 
-/* ---------------- Stats ---------------- */
-function fillStats(size, meshCount, sizeLabel){
-  let tris = 0;
-  allMeshes.forEach((m) => {
-    const geo = m.geometry;
-    const posCount = geo.attributes.position ? geo.attributes.position.count : 0;
-    tris += geo.index ? geo.index.count / 3 : posCount / 3;
-  });
-  tris = Math.round(tris);
-
-  document.getElementById('stats-row').innerHTML =
-    chip('Triângulos', tris.toLocaleString('pt-BR')) +
-    chip('Elementos', meshCount.toLocaleString('pt-BR')) +
-    chip('Dimensões', size.x.toFixed(1) + ' × ' + size.z.toFixed(1) + ' × ' + size.y.toFixed(1) + ' m');
-
-  document.getElementById('stats-foot').innerHTML =
-    kv('Arquivo', currentFloor.file || '—') +
-    kv('Tamanho', sizeLabel || '—') +
-    kv('Triângulos', tris.toLocaleString('pt-BR')) +
-    kv('Elementos', meshCount.toLocaleString('pt-BR'));
-}
-function chip(label, val){ return '<span class="stat-chip">' + label + ': <b>' + val + '</b></span>'; }
-function kv(label, val){ return '<div class="kv"><span class="k">' + label + '</span><span class="v">' + val + '</span></div>'; }
-
 /* ---------------- Pavimentos: troca e carregamento ---------------- */
 function renderFloorSwitch(){
   floorSwitchEl.innerHTML = '';
@@ -886,7 +859,6 @@ function loadFloor(floor){
   currentFloor = floor;
   renderFloorSwitch();
   floorTitle.textContent = floor.label;
-  fileNameEl.textContent = floor.file || '';
 
   clearSelection();
   disposeCurrentModel();
@@ -929,8 +901,6 @@ function loadFloor(floor){
       computeMeasurements();
       buildTree();
       renderCategoryFilters();
-      const sizeLabel = modelBytes ? (modelBytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB' : '—';
-      fillStats(size, allMeshes.length, sizeLabel);
 
       loadingEl.classList.add('hide');
     },
