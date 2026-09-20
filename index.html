@@ -709,6 +709,8 @@ function selectMesh(mesh, focus){
 
   selName.textContent = point ? pointLabel(point) : (entry ? entry.name : mesh.name || '(sem nome)');
   selPath.textContent = entry ? entry.path : '';
+  selName.style.display = point ? 'none' : '';
+  selPath.style.display = point ? 'none' : '';
   selBar.classList.add('show');
   renderMeasures(point);
 
