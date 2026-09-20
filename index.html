@@ -799,12 +799,20 @@ function selectMesh(mesh, focus){
   const outlineColor = point ? statusOutlineColor(pointAnnotation(point).status) : 0xffb020;
   outlineMeshes = outlineTargets.map((m) => outlineFor(m, outlineColor));
 
-  selName.textContent = point ? pointLabel(point) : (entry ? entry.name : mesh.name || '(sem nome)');
-  selPath.textContent = entry ? entry.path : '';
-  selName.style.display = point ? 'none' : '';
-  selPath.style.display = point ? 'none' : '';
-  selBar.classList.add('show');
-  renderMeasures(point);
+  /* Só tomadas mostram o balão de informação (status/altura/comentário).
+     Os demais elementos (estrutura, conduíte, suporte...) ficam só com o
+     destaque visual no 3D, sem nenhum texto exposto. */
+  if (point) {
+    selName.textContent = pointLabel(point);
+    selPath.textContent = '';
+    selName.style.display = 'none';
+    selPath.style.display = 'none';
+    selBar.classList.add('show');
+    renderMeasures(point);
+  } else {
+    selBar.classList.remove('show');
+    renderMeasures(null);
+  }
 
   if (focus) {
     const box = point ? point.box : new THREE.Box3().setFromObject(mesh);
