@@ -475,9 +475,14 @@ function pointAnnotation(point){
   let altura = '', comentario = '', status = '';
   point.entries.forEach((e) => {
     const ud = e.mesh.userData || {};
-    Object.keys(ud).forEach((k) => {
+    /* O exportador Leia/e-verse guarda os parâmetros do Revit dentro de
+       um objeto aninhado ("extras.parameters"), não soltos no nível
+       raiz do extras. Usamos esse objeto quando existir; caso contrário
+       caímos de volta pro userData direto (outros exportadores). */
+    const params = (ud.parameters && typeof ud.parameters === 'object') ? ud.parameters : ud;
+    Object.keys(params).forEach((k) => {
       if (/^type[\s_]/i.test(k)) return; // parâmetro de Tipo, não de instância
-      const val = ud[k];
+      const val = params[k];
       if (val === undefined || val === null || val === '') return;
       const key = k.toLowerCase();
       if (!altura && /altura|height|eleva[cç][aã]o/.test(key)) {
