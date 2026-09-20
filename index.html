@@ -80,6 +80,12 @@
   #sel-bar .name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #sel-bar .path{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#8ea0b5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #sel-bar button{margin-left:auto;flex:none;background:none;border:none;color:#8ea0b5;cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;}
+  #sel-bar{align-items:flex-start;}
+  #sel-bar .dot{margin-top:5px;}
+  .sel-measures{display:none;flex-wrap:wrap;gap:3px 12px;margin-top:5px;}
+  .sel-measures.show{display:flex;}
+  .sel-measures .m{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;white-space:nowrap;cursor:help;}
+  .sel-measures .m b{color:#fff2df;font-weight:600;}
 
   .panel-toggle{position:absolute;right:12px;top:12px;z-index:15;background:rgba(19,28,40,0.82);border:1px solid rgba(255,255,255,0.08);color:#dfe9f5;}
 
@@ -207,6 +213,7 @@
       <div style="min-width:0;">
         <div class="name" id="sel-name">&mdash;</div>
         <div class="path" id="sel-path"></div>
+        <div class="sel-measures" id="sel-measures"></div>
       </div>
       <button id="sel-close" title="Fechar">&times;</button>
     </div>
@@ -247,12 +254,12 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 /* ---------------- Pavimentos ----------------
-   Cada obra tem vários pavimentos. Hoje só o Térreo tem modelo publicado;
-   quando o 1º Pavimento estiver pronto, suba o .glb nesta mesma pasta e
-   troque "available" para true apontando "file" para esse arquivo. */
+   Cada obra tem vários pavimentos. Térreo e Pavimento Superior já têm
+   modelo publicado; para um novo pavimento, suba o .glb nesta mesma pasta,
+   adicione uma entrada aqui e aponte "file" para esse arquivo. */
 const FLOORS = [
-  { id: 'terreo', label: 'Térreo', file: 'Terreo-Fabio.glb', available: true },
-  { id: 'pav1', label: '1º Pavimento', file: null, available: false },
+  { id: 'terreo', label: 'Térreo', file: 'Elétrica-terreo.glb', available: true },
+  { id: 'pav1', label: 'Pavimento Superior', file: 'Elétrica-primeiropavimento.glb', available: true },
 ];
 let currentFloor = null;
 
@@ -331,6 +338,7 @@ const searchClear = document.getElementById('search-clear');
 const selBar = document.getElementById('sel-bar');
 const selName = document.getElementById('sel-name');
 const selPath = document.getElementById('sel-path');
+const selMeasures = document.getElementById('sel-measures');
 const floorTitle = document.getElementById('floor-title');
 const fileNameEl = document.getElementById('file-name');
 const floorSwitchEl = document.getElementById('floor-switch');
@@ -338,7 +346,9 @@ const floorSwitchEl = document.getElementById('floor-switch');
 let meshIndex = [];
 let allMeshes = [];
 let fitSphere = new THREE.Sphere(new THREE.Vector3(), 5);
-let outlineMesh = null;
+let outlineMeshes = [];
+let floorLevelY = 0;
+let tomadaClusters = [];
 const loader = new GLTFLoader();
 
 /* ---------------- Categorias (estrutura / conduítes / tomadas) ----------------
@@ -400,6 +410,101 @@ function buildIndex(root){
       meshIndex.push({ mesh: obj, name: obj.name || '(sem nome)', path: fullPath, cat });
     }
   });
+}
+
+function computeMeasurements(){
+  meshIndex.forEach((entry) => {
+    entry.box = new THREE.Box3().setFromObject(entry.mesh);
+    entry.center = entry.box.getCenter(new THREE.Vector3());
+    entry.pointGroup = null;
+  });
+
+  const floorSource = meshIndex.filter((e) => e.cat === 'estrutura');
+  const overall = new THREE.Box3();
+  meshIndex.forEach((e) => overall.union(e.box));
+  floorLevelY = floorSource.length ? Math.min(...floorSource.map((e) => e.box.min.y)) : (overall.isEmpty() ? 0 : overall.min.y);
+
+  /* Um ponto de tomada real vira vários meshes no glTF (moldura + módulos).
+     Agrupamos por proximidade em planta (x,z) para tratar como um único ponto. */
+  const CLUSTER_XZ_EPS = 0.12;
+  tomadaClusters = [];
+  meshIndex.filter((e) => e.cat === 'tomada').forEach((entry) => {
+    let target = tomadaClusters.find((c) => Math.hypot(c.x - entry.center.x, c.z - entry.center.z) < CLUSTER_XZ_EPS);
+    if (!target) {
+      target = { entries: [], box: new THREE.Box3(), x: entry.center.x, z: entry.center.z };
+      tomadaClusters.push(target);
+    }
+    target.entries.push(entry);
+    target.box.union(entry.box);
+  });
+  tomadaClusters.forEach((c) => {
+    c.center = c.box.getCenter(new THREE.Vector3());
+    c.entries.forEach((e) => { e.pointGroup = c; });
+  });
+}
+
+/* Lê propriedades vindas do Revit (Comentários / Altura ou Marca) que sobrevivem
+   à exportação Revit -> FBX -> Blender -> glTF como "Custom Properties" do Blender.
+   O three.js expõe isso automaticamente em mesh.userData (via node.extras do glTF). */
+function pointAnnotation(point){
+  let altura = '', comentario = '';
+  point.entries.forEach((e) => {
+    const ud = e.mesh.userData || {};
+    Object.keys(ud).forEach((k) => {
+      const val = ud[k];
+      if (val === undefined || val === null || val === '') return;
+      const key = k.toLowerCase();
+      if (!altura && /altura|height/.test(key)) altura = String(val);
+      if (!altura && /marca|mark/.test(key)) altura = String(val);
+      if (!comentario && /coment|comment/.test(key)) comentario = String(val);
+    });
+  });
+  return { altura, comentario };
+}
+
+function pointLabel(point){
+  const withId = point.entries.find((e) => /\[\d+\]/.test(e.name));
+  if (withId) {
+    const m = withId.name.match(/\[(\d+)\]/);
+    return 'Tomada ' + (m ? '#' + m[1] : withId.name);
+  }
+  return bestLabel(point.entries[0]);
+}
+
+function fmtDist(v){
+  if (!isFinite(v)) return '—';
+  if (Math.abs(v) < 3) return Math.round(v * 100) + ' cm';
+  return v.toFixed(2).replace('.', ',') + ' m';
+}
+
+function measureChip(label, value, title){
+  const span = document.createElement('span');
+  span.className = 'm';
+  span.title = title;
+  span.textContent = label + ': ';
+  const b = document.createElement('b');
+  b.textContent = value;
+  span.appendChild(b);
+  return span;
+}
+
+function renderMeasures(point){
+  selMeasures.innerHTML = '';
+  if (!point) { selMeasures.classList.remove('show'); return; }
+  const ann = pointAnnotation(point);
+  const heightEstimate = fmtDist(point.center.y - floorLevelY);
+
+  selMeasures.appendChild(measureChip(
+    'Altura',
+    ann.altura || (heightEstimate + ' (estimada)'),
+    ann.altura ? 'Altura informada no Revit (Comentários/Marca).' : 'Nenhuma altura vinda do Revit para este ponto — valor estimado pela geometria do modelo.'
+  ));
+  selMeasures.appendChild(measureChip(
+    'Comentário',
+    ann.comentario || '— sem nota do Revit —',
+    'Comentário vindo do Revit, mantido na exportação Revit → FBX → Blender → glTF.'
+  ));
+  selMeasures.classList.add('show');
 }
 
 function renderCategoryFilters(){
@@ -578,27 +683,37 @@ function svgIcon(path, cls){
 
 /* ---------------- Selection + outline ---------------- */
 function clearSelection(){
-  if (outlineMesh) { modelGroup.remove(outlineMesh); outlineMesh.geometry.dispose(); outlineMesh = null; }
+  outlineMeshes.forEach((o) => { modelGroup.remove(o); o.geometry.dispose(); });
+  outlineMeshes = [];
   selBar.classList.remove('show');
+  renderMeasures(null);
   document.querySelectorAll('.tree-row.selected').forEach((r) => r.classList.remove('selected'));
+}
+
+function outlineFor(mesh){
+  const edges = new THREE.EdgesGeometry(mesh.geometry, 20);
+  const mat = new THREE.LineBasicMaterial({ color: 0xffb020, linewidth: 2 });
+  const line = new THREE.LineSegments(edges, mat);
+  mesh.updateWorldMatrix(true, false);
+  line.applyMatrix4(mesh.matrixWorld);
+  modelGroup.add(line);
+  return line;
 }
 
 function selectMesh(mesh, focus){
   clearSelection();
-  const edges = new THREE.EdgesGeometry(mesh.geometry, 20);
-  const mat = new THREE.LineBasicMaterial({ color: 0xffb020, linewidth: 2 });
-  outlineMesh = new THREE.LineSegments(edges, mat);
-  mesh.updateWorldMatrix(true, false);
-  outlineMesh.applyMatrix4(mesh.matrixWorld);
-  modelGroup.add(outlineMesh);
-
   const entry = meshIndex.find((m) => m.mesh === mesh);
-  selName.textContent = entry ? entry.name : mesh.name || '(sem nome)';
+  const point = entry && entry.cat === 'tomada' ? entry.pointGroup : null;
+  const outlineTargets = point ? point.entries.map((e) => e.mesh) : [mesh];
+  outlineMeshes = outlineTargets.map(outlineFor);
+
+  selName.textContent = point ? pointLabel(point) : (entry ? entry.name : mesh.name || '(sem nome)');
   selPath.textContent = entry ? entry.path : '';
   selBar.classList.add('show');
+  renderMeasures(point);
 
   if (focus) {
-    const box = new THREE.Box3().setFromObject(mesh);
+    const box = point ? point.box : new THREE.Box3().setFromObject(mesh);
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     if (sphere.radius > 0) frameToSphere(sphere);
   }
@@ -693,6 +808,8 @@ function loadFloor(floor){
   disposeCurrentModel();
   meshIndex = [];
   allMeshes = [];
+  tomadaClusters = [];
+  floorLevelY = 0;
   activeCats = new Set();
   searchInput.value = '';
   searchCount.textContent = '';
@@ -725,6 +842,7 @@ function loadFloor(floor){
       frameToSphere(fitSphere);
 
       buildIndex(root);
+      computeMeasurements();
       buildTree();
       renderCategoryFilters();
       const sizeLabel = modelBytes ? (modelBytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB' : '—';
