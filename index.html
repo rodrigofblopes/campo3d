@@ -42,7 +42,7 @@
   .topbar-spacer{flex:1;}
   .tomada-progress{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:6px 11px;flex:none;cursor:pointer;color:inherit;}
   .tomada-progress:hover{border-color:var(--accent);}
-  .tp-track{width:64px;height:6px;border-radius:3px;background:rgba(255,176,32,.25);overflow:hidden;flex:none;display:flex;}
+  .tp-track{width:64px;height:6px;border-radius:3px;background:var(--border);overflow:hidden;flex:none;display:flex;}
   .tp-track i{display:block;height:100%;}
   .tp-text{font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.3;color:var(--text-dim);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:left;}
   .tp-text b{color:var(--text);font-weight:700;font-size:12px;}
@@ -105,7 +105,7 @@
   #sel-bar{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;max-width:min(560px,calc(100% - 150px));background:rgba(19,28,40,0.94);border:1px solid rgba(255,255,255,0.1);border-radius:11px;padding:9px 12px;color:#eaf1f8;display:none;align-items:flex-start;gap:10px;z-index:16;}
   #sel-bar.show{display:flex;}
   #sel-bar .sel-title{font-weight:700;font-size:12.5px;margin-bottom:4px;}
-  #sel-bar button{margin-left:auto;flex:none;background:none;border:none;color:#8ea0b5;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;}
+  #sel-bar #sel-close{margin-left:auto;flex:none;background:none;border:none;color:#8ea0b5;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;}
   .sel-measures{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
   .sel-measures .m{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;}
   .sel-measures .m b{color:#fff2df;font-weight:600;}
@@ -148,7 +148,9 @@
   .sf-btn .n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;}
   .sf-btn.active{border-color:var(--text);background:var(--text);color:#fff;}
   .panel-meta{font-size:11.5px;color:var(--text-dim);}
-  .panel-body{flex:1;min-height:0;overflow-y:auto;padding:6px 8px 14px;}
+  .panel-body{flex:none;padding:6px 8px 14px;}
+  #panel{overflow-y:auto;overscroll-behavior:contain;}
+  .panel-head{position:relative;}
   .t-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 10px;width:100%;padding:9px 8px;border:none;border-bottom:1px solid var(--panel-2);background:none;text-align:left;cursor:pointer;color:var(--text);}
   .t-row:hover{background:var(--panel-2);}
   .t-row.selected{background:var(--accent-soft);}
@@ -157,7 +159,38 @@
   .t-row .t-h{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;}
   .empty-hint{padding:24px 10px;text-align:center;color:var(--text-dim);font-size:12.5px;line-height:1.6;}
 
+  /* ---- Etapas de execução (marcadas no celular) ---- */
+  .et-0{--et:#b9c3cf;} .et-1{--et:#ffb020;} .et-2{--et:#3b8fe0;} .et-3{--et:#9b6fe0;} .et-4{--et:#2ecc71;}
+  .edot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;background:var(--et,#b9c3cf);}
+  .tag[class*="et-"]{border-left-color:var(--et);}
+  .etapa-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+  .et-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#dfe9f5;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;min-height:38px;}
+  .et-btn.done{background:rgba(255,255,255,.12);}
+  .et-btn.on{background:var(--et);border-color:var(--et);color:#0d1b2a;}
+  .et-btn.on .edot{background:#0d1b2a;}
+  .et-meta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;margin-top:6px;}
+  .et-meta b{color:#fff2df;font-weight:600;}
+  .sync{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--text-dim);background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:6px 10px;white-space:nowrap;flex:none;cursor:pointer;}
+  .sync i{width:7px;height:7px;border-radius:50%;background:var(--none);}
+  .sync.ok i{background:var(--ok);} .sync.wait i{background:var(--warn);} .sync.off i{background:var(--bad);}
+  .etapa-filter,.bulk{display:flex;flex-wrap:wrap;gap:6px;}
+  .sf-btn.et-f.active{background:var(--et);border-color:var(--et);color:#0d1b2a;}
+  .sf-btn.et-f.active .edot{background:#0d1b2a;}
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:2px;}
+  .seg button{border:none;background:none;padding:5px 9px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--text-dim);cursor:pointer;}
+  .seg button.active{background:var(--text);color:#fff;}
+  .row-line{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .who{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:13px;font-family:inherit;}
+  .bulk-box{border:1px dashed var(--border);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:6px;}
+  .bulk-box .lbl{font-size:11.5px;color:var(--text-dim);}
+  .bulk .sf-btn{padding:5px 9px;}
+  .bulk-confirm{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:600;}
+  .bulk-confirm button{border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-weight:700;cursor:pointer;background:var(--panel-2);}
+  .bulk-confirm button.yes{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+
   @media (max-width:640px){
+    #sel-bar{left:62px;right:8px;transform:none;width:auto;max-width:none;}
+    .sync span{display:none;}
     .brand h1{font-size:14px;}
     .icon-btn{width:40px;height:40px;}
     .icon-btn svg{width:19px;height:19px;}
@@ -190,6 +223,7 @@
       <span class="tp-track" id="tp-track"></span>
       <span class="tp-text" id="tp-text">&mdash;</span>
     </button>
+    <button class="sync" id="sync" type="button" title="Situação do envio das marcações"><i></i><span id="sync-txt">Conectando…</span></button>
   </div>
   <nav class="rooms" id="rooms" aria-label="Ambientes do pavimento"></nav>
 
@@ -251,7 +285,17 @@
           <input id="search" type="search" placeholder="Buscar: nº, 20A, 110 cm, comentário…" autocomplete="off" enterkeyhint="search">
           <button class="clear" id="search-clear" type="button" aria-label="Limpar busca" hidden>&times;</button>
         </div>
+        <input class="who" id="who" type="text" placeholder="Seu nome (aparece nas marcações)" autocomplete="name" maxlength="60">
+        <div class="row-line">
+          <span class="panel-meta">Cor dos pontos</span>
+          <div class="seg" id="color-mode"><button type="button" data-m="etapa">Etapa</button><button type="button" data-m="marca">Situação (Revit)</button></div>
+        </div>
+        <div class="etapa-filter" id="etapa-filter"></div>
         <div class="status-filter" id="status-filter"></div>
+        <div class="bulk-box" id="bulk-box">
+          <div class="lbl" id="bulk-lbl"></div>
+          <div class="bulk" id="bulk"></div>
+        </div>
         <div class="panel-meta" id="panel-meta"></div>
       </div>
       <div class="panel-body" id="t-list"></div>
@@ -374,6 +418,26 @@ function statusMaterial(key){
   if (!statusMats[key]) statusMats[key] = new THREE.MeshStandardMaterial({ color: STATUS[key].color, metalness: 0.05, roughness: 0.4 });
   return statusMats[key];
 }
+/* Etapas de execução: marcadas no celular e salvas no banco (api/etapas.js).
+   Cada etapa inclui as anteriores: um ponto "Acabamento" já passou por infra e
+   enfiação. O ponto é identificado pelo ID do elemento no Revit. */
+const OBRA = 'l14q13';
+const ETAPAS = [
+  { label: 'Não iniciado', curto: 'Não iniciado', color: 0xf2efe8 },
+  { label: 'Infra (caixa e eletroduto)', curto: 'Infra', color: 0xffb020 },
+  { label: 'Enfiação', curto: 'Enfiação', color: 0x3b8fe0 },
+  { label: 'Acabamento', curto: 'Acabamento', color: 0x9b6fe0 },
+  { label: 'Testado', curto: 'Testado', color: 0x2ecc71 },
+];
+const etapaMats = {};
+function etapaMaterial(k){
+  if (!etapaMats[k]) etapaMats[k] = new THREE.MeshStandardMaterial({ color: ETAPAS[k].color, metalness: 0.05, roughness: 0.4 });
+  return etapaMats[k];
+}
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
 function categorize(p){
   const n = p.toLowerCase();
   if (/perfil.*lsf/.test(n)) return 'suporte';
@@ -388,6 +452,12 @@ let meshIndex = [], allMeshes = [], tomadaClusters = [], outlines = [];
 let fitSphere = new THREE.Sphere(new THREE.Vector3(), 5);
 let activeCats = new Set();
 let statusFilter = 'all';
+let etapaFilter = 'all';
+let colorMode = store.get('campo3d-cor', 'etapa');
+let etapaServer = {};                          // elemento -> { etapa, autor, em }
+let fila = store.get('campo3d-fila', []);      // marcações ainda não enviadas
+let syncState = 'wait', syncBusy = false;
+let bulkPending = null;
 let selectedCluster = null;
 let tagsOn = true;
 const cache = new Map();       // id -> root já montado (troca instantânea ao voltar)
@@ -554,10 +624,90 @@ function buildIndex(root){
     c.center = c.box.getCenter(new THREE.Vector3());
     c.entries.forEach((e) => { e.pointGroup = c; });
     describeCluster(c);
-    c.entries.forEach((e) => { e.mesh.material = statusMaterial(c.info.status); });
+    c.et = etapaDe(c.info.id);
+    paintCluster(c);
   });
   tomadaClusters.sort((a, b) => STATUS[a.info.status].order - STATUS[b.info.status].order || (a.info.alturaNum || 0) - (b.info.alturaNum || 0));
 }
+function paintCluster(c){
+  const m = colorMode === 'etapa' ? etapaMaterial(c.et.etapa) : statusMaterial(c.info.status);
+  c.entries.forEach((e) => { e.mesh.material = m; });
+  if (c.tagEl) c.tagEl.className = 'tag ' + (colorMode === 'etapa' ? 'et-' + c.et.etapa : 'st-' + c.info.status) + (c === selectedCluster ? ' hit' : '');
+}
+
+/* ---------------- Etapas: estado, fila offline e sincronização ---------------- */
+function etapaDe(id){
+  const vazio = { etapa: 0, autor: '', em: '', local: false };
+  if (!id) return vazio;
+  for (let i = fila.length - 1; i >= 0; i--) if (fila[i].elemento === id) return { etapa: fila[i].etapa, autor: fila[i].autor, em: fila[i].em, local: true };
+  const s = etapaServer[id];
+  return s ? { etapa: s.etapa, autor: s.autor || '', em: s.em || '', local: false } : vazio;
+}
+function refreshEtapas(){
+  tomadaClusters.forEach((c) => { c.et = etapaDe(c.info.id); paintCluster(c); });
+  renderTomadaProgress(); renderEtapaFilter(); renderBulk();
+  applyFilters(false);
+  if (selectedCluster) renderSelEtapa(selectedCluster);
+}
+function marcar(clusters, etapa){
+  const autor = (store.get('campo3d-nome', '') || '').trim() || 'Sem nome';
+  const em = new Date().toISOString();
+  clusters.forEach((c) => {
+    if (!c.info.id) return;
+    fila = fila.filter((f) => f.elemento !== c.info.id);
+    fila.push({ elemento: c.info.id, etapa, autor, ambiente: current ? current.label : '', em });
+  });
+  store.set('campo3d-fila', fila);
+  refreshEtapas();
+  sincronizar();
+}
+function renderSync(){
+  const el = $('sync');
+  el.className = 'sync ' + syncState;
+  const n = fila.length;
+  $('sync-txt').textContent = n ? n + ' a enviar' : syncState === 'ok' ? 'Sincronizado' : syncState === 'off' ? 'Sem conexão' : 'Conectando…';
+  el.title = n ? n + ' marcações salvas neste aparelho, aguardando internet para enviar.'
+    : syncState === 'ok' ? 'Todas as marcações estão salvas no servidor.' : 'Sem contato com o servidor. As marcações ficam guardadas neste aparelho.';
+}
+async function sincronizar(){
+  renderSync();
+  if (syncBusy || !fila.length) return;
+  syncBusy = true;
+  const lote = fila.slice(0, 200);
+  try {
+    const r = await fetch('/api/etapas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ obra: OBRA, marcacoes: lote }) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    lote.forEach((m) => { etapaServer[m.elemento] = { etapa: m.etapa, autor: m.autor, em: m.em }; });
+    fila = fila.filter((f) => !lote.includes(f));
+    store.set('campo3d-fila', fila);
+    syncState = 'ok';
+    refreshEtapas();
+  } catch (e) { syncState = 'off'; }
+  syncBusy = false;
+  renderSync();
+  if (fila.length && syncState === 'ok') sincronizar();
+}
+async function carregarEtapas(){
+  try {
+    const r = await fetch('/api/etapas?obra=' + OBRA, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    etapaServer = d.pontos || {};
+    store.set('campo3d-etapas', etapaServer);
+    syncState = 'ok';
+  } catch (e) {
+    etapaServer = store.get('campo3d-etapas', etapaServer);
+    syncState = 'off';
+  }
+  renderSync();
+  refreshEtapas();
+  sincronizar();
+}
+etapaServer = store.get('campo3d-etapas', {});
+window.addEventListener('online', carregarEtapas);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carregarEtapas(); });
+setInterval(() => { if (document.visibilityState === 'visible') carregarEtapas(); }, 60000);
+$('sync').addEventListener('click', carregarEtapas);
 
 /* ---------------- Etiquetas de altura ---------------- */
 function buildTags(){
@@ -571,6 +721,7 @@ function buildTags(){
     const obj = new CSS2DObject(el);
     obj.position.set(c.center.x, c.box.max.y, c.center.z);
     c.tag = obj; c.tagEl = el;
+    paintCluster(c);
     overlayGroup.add(obj);
   });
   applyTagState();
@@ -587,13 +738,22 @@ function counts(){
   tomadaClusters.forEach((t) => { c[t.info.status]++; });
   return c;
 }
+function etapaCounts(){
+  const n = [0, 0, 0, 0, 0];
+  tomadaClusters.forEach((t) => { n[t.et ? t.et.etapa : 0]++; });
+  return n;
+}
 function renderTomadaProgress(){
   const el = $('tomada-progress');
   const c = counts();
   if (!c.all) { el.hidden = true; return; }
-  const pct = Math.round(c.executado / c.all * 100);
-  $('tp-track').innerHTML = '<i style="width:' + (c.executado / c.all * 100) + '%;background:var(--ok)"></i><i style="width:' + (c['nao-conforme'] / c.all * 100) + '%;background:var(--bad)"></i>';
-  $('tp-text').innerHTML = '<b>' + pct + '%</b> de ' + c.all + ' tomadas<span class="tp-2">' + (current.all ? '' : ' no ambiente') + '<br><span class="tp-exec">' + c.executado + ' exec.</span> &nbsp;<span class="tp-pend">' + c.pendente + ' pend.</span>' + (c['nao-conforme'] ? ' &nbsp;<span class="tp-nc">' + c['nao-conforme'] + ' n/c</span>' : '') + '</span>';
+  /* Avanço por etapa: % de pontos que já chegaram a cada etapa (ou passaram dela). */
+  const n = etapaCounts();
+  const ate = (k) => n.slice(k).reduce((a, b) => a + b, 0);
+  const pct = (k) => Math.round(ate(k) / c.all * 100);
+  $('tp-track').innerHTML = [4, 3, 2, 1].map((k) => '<i class="et-' + k + '" style="width:' + (n[k] / c.all * 100) + '%;background:var(--et)"></i>').join('');
+  $('tp-text').innerHTML = '<b>Infra ' + pct(1) + '%</b> · ' + c.all + ' tomadas' + '<span class="tp-2">' + (current.all ? '' : ' no ambiente') +
+    '<br>Enf. ' + pct(2) + '% · Acab. ' + pct(3) + '% · Teste ' + pct(4) + '%' + (c['nao-conforme'] ? ' &nbsp;<span class="tp-nc">' + c['nao-conforme'] + ' n/c</span>' : '') + '</span>';
   /* Tomadas na divisa entre ambientes saem em mais de um arquivo; por isso o
      total oficial do pavimento é o da aba "inteiro", não a soma das abas. */
   el.title = current.all
@@ -638,9 +798,79 @@ function renderStatusFilter(){
     el.appendChild(b);
   });
 }
-function clusterMatches(c, q){
-  return (statusFilter === 'all' || c.info.status === statusFilter) && (!q || c.info.search.includes(q) || c.info.name.toLowerCase().includes(q));
+function renderEtapaFilter(){
+  const el = $('etapa-filter');
+  el.innerHTML = '';
+  const n = etapaCounts();
+  if (!tomadaClusters.length) return;
+  [['all', 'Todas etapas'], ...ETAPAS.map((e, k) => [k, e.curto])].forEach(([key, label]) => {
+    if (key !== 'all' && !n[key]) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sf-btn et-f' + (key === 'all' ? '' : ' et-' + key) + (etapaFilter === key ? ' active' : '');
+    b.innerHTML = (key === 'all' ? '' : '<span class="edot"></span>') + label + ' <span class="n">' + (key === 'all' ? tomadaClusters.length : n[key]) + '</span>';
+    b.addEventListener('click', () => { etapaFilter = key; bulkPending = null; renderEtapaFilter(); renderBulk(); applyFilters(true); });
+    el.appendChild(b);
+  });
 }
+function clusterMatches(c, q){
+  const et = c.et ? c.et.etapa : 0;
+  return (statusFilter === 'all' || c.info.status === statusFilter) && (etapaFilter === 'all' || et === etapaFilter) &&
+    (!q || c.info.search.includes(q) || c.info.name.toLowerCase().includes(q) || ETAPAS[et].label.toLowerCase().includes(q));
+}
+function listedClusters(){
+  const q = searchInput.value.trim().toLowerCase();
+  const tomadasOff = activeCats.size > 0 && !activeCats.has('tomada');
+  return tomadasOff ? [] : tomadaClusters.filter((c) => clusterMatches(c, q));
+}
+
+/* Marcar em lote: todos os pontos da lista atual (depois dos filtros). Pede
+   confirmação na própria tela, sem janela do navegador. */
+function renderBulk(){
+  const box = $('bulk-box'), el = $('bulk');
+  const all = listedClusters().filter((c) => c.info.id);
+  box.hidden = !all.length;
+  el.innerHTML = '';
+  if (!all.length) return;
+  if (bulkPending !== null) {
+    /* Em lote só avança: pontos que já passaram dessa etapa não voltam. */
+    const items = all.filter((c) => c.et.etapa < bulkPending);
+    $('bulk-lbl').textContent = '';
+    const w = document.createElement('div');
+    w.className = 'bulk-confirm';
+    w.appendChild(document.createTextNode(items.length
+      ? 'Avançar ' + items.length + (items.length === 1 ? ' ponto' : ' pontos') + ' para ' + ETAPAS[bulkPending].curto + '?' + (all.length > items.length ? ' (' + (all.length - items.length) + ' já estão nessa etapa ou além)' : '')
+      : 'Todos os pontos da lista já estão em ' + ETAPAS[bulkPending].curto + ' ou além.'));
+    const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'yes'; yes.textContent = 'Confirmar';
+    const no = document.createElement('button'); no.type = 'button'; no.textContent = 'Cancelar';
+    yes.addEventListener('click', () => { const k = bulkPending; bulkPending = null; marcar(items, k); });
+    no.addEventListener('click', () => { bulkPending = null; renderBulk(); });
+    if (items.length) w.append(yes, no); else { no.textContent = 'Ok'; w.append(no); }
+    el.appendChild(w);
+    return;
+  }
+  $('bulk-lbl').textContent = 'Avançar os ' + all.length + ' pontos da lista para:';
+  ETAPAS.forEach((e, k) => {
+    if (!k) return;
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'sf-btn et-' + k;
+    b.innerHTML = '<span class="edot"></span>' + e.curto;
+    b.addEventListener('click', () => { bulkPending = k; renderBulk(); });
+    el.appendChild(b);
+  });
+}
+
+/* Nome de quem marca e modo de cor */
+$('who').value = store.get('campo3d-nome', '');
+$('who').addEventListener('input', () => store.set('campo3d-nome', $('who').value.trim()));
+function renderColorMode(){
+  document.querySelectorAll('#color-mode button').forEach((b) => b.classList.toggle('active', b.dataset.m === colorMode));
+}
+document.querySelectorAll('#color-mode button').forEach((b) => b.addEventListener('click', () => {
+  colorMode = b.dataset.m; store.set('campo3d-cor', colorMode); renderColorMode();
+  tomadaClusters.forEach(paintCluster); renderList(searchInput.value.trim().toLowerCase());
+}));
+renderColorMode();
 function applyFilters(reframe){
   const q = searchInput.value.trim().toLowerCase();
   $('search-clear').hidden = !q;
@@ -669,19 +899,21 @@ function renderList(q){
   listEl.innerHTML = '';
   const tomadasOff = activeCats.size > 0 && !activeCats.has('tomada');
   const items = tomadasOff ? [] : tomadaClusters.filter((c) => clusterMatches(c, q));
+  renderBulk();
   $('panel-h').textContent = 'Tomadas · ' + (current ? current.label : '');
   $('panel-meta').textContent = tomadasOff ? 'As tomadas estão ocultas pelo filtro de categoria.'
-    : items.length + (items.length === 1 ? ' tomada' : ' tomadas') + ((q || statusFilter !== 'all') ? ' encontradas' : '') + ' · ordem: não conforme, pendente, sem status, executado';
+    : items.length + (items.length === 1 ? ' tomada' : ' tomadas') + ((q || statusFilter !== 'all' || etapaFilter !== 'all') ? ' encontradas' : '') + ' · ordem: não conforme, pendente, sem status, executado';
   if (!items.length) { listEl.innerHTML = '<div class="empty-hint">Nenhuma tomada com esse filtro.</div>'; return; }
   const frag = document.createDocumentFragment();
   items.forEach((c) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 't-row' + (c === selectedCluster ? ' selected' : '');
-    b.innerHTML = '<span class="sdot st-' + c.info.status + '"></span><span class="t-name"></span><span class="t-h"></span><span class="t-sub"></span>';
+    const dot = colorMode === 'etapa' ? '<span class="edot et-' + c.et.etapa + '"></span>' : '<span class="sdot st-' + c.info.status + '"></span>';
+    b.innerHTML = dot + '<span class="t-name"></span><span class="t-h"></span><span class="t-sub"></span>';
     b.querySelector('.t-name').textContent = c.info.name;
     b.querySelector('.t-h').textContent = c.info.altura || '—';
-    b.querySelector('.t-sub').textContent = [STATUS[c.info.status].label, c.info.sub, c.info.comentario].filter(Boolean).join(' · ');
+    b.querySelector('.t-sub').textContent = [ETAPAS[c.et.etapa].curto + (c.et.local ? ' (a enviar)' : ''), c.info.status !== 'none' && STATUS[c.info.status].label, c.info.sub, c.info.comentario].filter(Boolean).join(' · ');
     b.addEventListener('click', () => {
       selectCluster(c, true);
       if (window.innerWidth <= 640) openPanel(false);
@@ -732,12 +964,42 @@ function selectCluster(c, focus){
     const s = document.createElement('span'); s.className = 'm'; s.textContent = k + ': ';
     const b = document.createElement('b'); b.textContent = v; s.appendChild(b); selMeasures.appendChild(s);
   });
+  renderSelEtapa(c);
   selBar.classList.add('show');
   if (focus) {
     const s = worldBox(c.box).getBoundingSphere(new THREE.Sphere());
     s.radius = Math.max(s.radius, 0.6);
     frameToSphere(s);
   }
+}
+/* Botões de etapa no balão: tocar marca a etapa; tocar de novo na etapa atual
+   volta para a anterior (desfazer um toque errado). */
+function renderSelEtapa(c){
+  let box = $('sel-etapa');
+  if (!box) { box = document.createElement('div'); box.id = 'sel-etapa'; selMeasures.parentNode.appendChild(box); }
+  box.innerHTML = '';
+  if (!c.info.id) { box.innerHTML = '<div class="et-meta">Sem número de elemento no modelo: não dá para marcar etapa.</div>'; return; }
+  const row = document.createElement('div');
+  row.className = 'etapa-row';
+  ETAPAS.forEach((e, k) => {
+    if (!k) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'et-btn et-' + k + (c.et.etapa === k ? ' on' : c.et.etapa > k ? ' done' : '');
+    b.innerHTML = '<span class="edot"></span>' + e.curto;
+    b.addEventListener('click', () => marcar([c], c.et.etapa === k ? k - 1 : k));
+    row.appendChild(b);
+  });
+  box.appendChild(row);
+  const meta = document.createElement('div');
+  meta.className = 'et-meta';
+  if (c.et.etapa && c.et.em) {
+    const d = new Date(c.et.em);
+    const quando = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    meta.innerHTML = 'Etapa: <b></b> · ' + (c.et.autor || 'Sem nome') + ' · ' + quando + (c.et.local ? ' · aguardando envio' : '');
+    meta.querySelector('b').textContent = ETAPAS[c.et.etapa].curto;
+  } else meta.textContent = 'Etapa: não iniciado' + (store.get('campo3d-nome', '') ? '' : ' · informe seu nome na lista para assinar as marcações');
+  box.appendChild(meta);
 }
 function selectMesh(mesh){
   const entry = meshIndex.find((m) => m.mesh === mesh);
@@ -812,7 +1074,7 @@ function showRoot(room, root){
   modelGroup.add(root);
   buildIndex(root);
   activeCats = new Set();
-  statusFilter = 'all';
+  statusFilter = 'all'; etapaFilter = 'all'; bulkPending = null;
   searchInput.value = '';
   new THREE.Box3().setFromObject(modelGroup).getBoundingSphere(fitSphere);
   buildTags();
@@ -821,6 +1083,8 @@ function showRoot(room, root){
   renderTomadaProgress();
   renderCategoryFilters();
   renderStatusFilter();
+  renderEtapaFilter();
+  renderBulk();
   renderRooms();
   loadingEl.classList.add('hide');
 }
@@ -906,8 +1170,8 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 
 /* ---------------- Ferramentas ---------------- */
 $('btn-reset').addEventListener('click', () => {
-  clearSelection(); activeCats.clear(); statusFilter = 'all'; searchInput.value = '';
-  renderCategoryFilters(); renderStatusFilter(); applyFilters(false); frameToSphere(fitSphere);
+  clearSelection(); activeCats.clear(); statusFilter = 'all'; etapaFilter = 'all'; bulkPending = null; searchInput.value = '';
+  renderCategoryFilters(); renderStatusFilter(); renderEtapaFilter(); applyFilters(false); frameToSphere(fitSphere);
 });
 $('btn-top').addEventListener('click', () => frameToSphere(fitSphere, true));
 $('btn-full').addEventListener('click', () => {
@@ -926,6 +1190,8 @@ if (window.innerWidth < 400) { $('keyplan').classList.add('min'); $('kp-caret').
   labelRenderer.render(scene, camera);
 })();
 checkOfflineCache();
+renderSync();
+carregarEtapas();
 const fromHash = ALL_ROOMS.find((r) => '#' + r.id === location.hash);
 selectRoom(fromHash || ALL_ROOMS.find((r) => r.id === 'garagem'));
 </script>
