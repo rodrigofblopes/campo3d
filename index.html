@@ -309,10 +309,6 @@
           <button class="clear" id="search-clear" type="button" aria-label="Limpar busca" hidden>&times;</button>
         </div>
         <input class="who" id="who" type="text" placeholder="Seu nome (aparece nas marcações)" autocomplete="name" maxlength="60">
-        <div class="row-line">
-          <span class="panel-meta">Cor dos pontos</span>
-          <div class="seg" id="color-mode"><button type="button" data-m="etapa">Etapa</button><button type="button" data-m="marca">Situação (Revit)</button></div>
-        </div>
         <div class="etapa-filter" id="etapa-filter"></div>
         <div class="status-filter" id="status-filter"></div>
         <div class="bulk-box" id="bulk-box">
@@ -364,13 +360,17 @@ const FLOORS = [
    'distancia' mostra 0,40 como 40 cm. Campo vazio no Revit não aparece.
    Cada pessoa também pode fixar mais campos no próprio aparelho, tocando na
    estrela em "Todas as propriedades". */
+/* Convenção da obra: Marca = tipo do ponto (tomada, luminária);
+   Comentários = distância (ao ponto ao lado, à parede). A situação é a etapa
+   marcada no celular. */
 const CAMPOS = [
+  { rotulo: 'Tipo',       param: 'Marca' },
   { rotulo: 'Altura',     param: 'Elevação do Ponto', formato: 'distancia' },
-  { rotulo: 'Tipo',       param: 'Type Dimensões' },
+  { rotulo: 'Distância',  param: 'Comentários' },
+  { rotulo: 'Modelo',     param: 'Type Dimensões' },
   { rotulo: 'Circuito',   param: 'Circuito' },
   { rotulo: 'Comando',    param: 'Comando' },
   { rotulo: 'Ambiente',   param: 'Ambiente' },
-  { rotulo: 'Comentário', param: 'Comentários' },
 ];
 FLOORS.forEach((f) => f.rooms.forEach((r) => { r.floor = f; }));
 const ALL_ROOMS = FLOORS.flatMap((f) => f.rooms);
@@ -490,7 +490,7 @@ let fitSphere = new THREE.Sphere(new THREE.Vector3(), 5);
 let activeCats = new Set();
 let statusFilter = 'all';
 let etapaFilter = 'all';
-let colorMode = store.get('campo3d-cor', 'etapa');
+let colorMode = 'etapa';   // situação = etapa marcada no celular
 let etapaServer = {};                          // elemento -> { etapa, autor, em }
 let fila = store.get('campo3d-fila', []);      // marcações ainda não enviadas
 let syncState = 'wait', syncBusy = false;
@@ -655,7 +655,7 @@ function valorParam(c, nome){
       if (norm(k) !== alvo) continue;
       const v = pr.params[k];
       if (v === undefined || v === null || v === '' || v === 'Não Listar') continue;
-      if (alvo === 'marca' && /^\d+$/.test(String(v))) continue; // numeração automática dos módulos
+      if (alvo === 'marca' && (/^\d+$/.test(String(v)) || normalizeStatus(String(v)))) continue; // numeração dos módulos e status antigos
       return String(v);
     }
   }
@@ -711,17 +711,19 @@ function paintCluster(c){
 /* ---------------- Conteúdo da etiqueta 3D ----------------
    Cada pessoa escolhe no menu das etiquetas o que aparece; fica salvo no aparelho. */
 const ETIQ = [
-  ['tipo', 'Tipo do ponto'], ['altura', 'Altura'], ['vizinho', 'Distância ao ponto vizinho'],
-  ['parede', 'Distância à parede transversal'], ['etapa', 'Etapa (infra, enfiação…)'],
+  ['tipo', 'Tipo (Marca)'], ['altura', 'Altura'], ['distancia', 'Distância (Comentários)'],
+  ['etapa', 'Etapa (infra, enfiação…)'], ['vizinho', 'Ponto vizinho (calculado)'], ['parede', 'Parede (estimada no modelo)'],
 ];
-let tagFields = store.get('campo3d-etiqueta', ['altura']);
+let tagFields = store.get('campo3d-etiqueta', ['tipo', 'altura', 'distancia', 'etapa']);
 function textoEtiqueta(c){
   const el = c.tagEl; if (!el) return;
   const esc = (t) => String(t).replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
   const l1 = [], l2 = [];
   if (tagFields.includes('altura')) l1.push(c.info.altura || '?');
-  if (tagFields.includes('tipo') && c.info.dims) l1.push(c.info.dims.replace(/''/g, '"'));
+  if (tagFields.includes('tipo')) { const t = valorParam(c, 'Marca') || c.info.dims; if (t) l1.unshift(t.replace(/''/g, '"')); }
+  if (tagFields.includes('distancia')) { const d = valorParam(c, 'Comentários'); if (d) l2.push(d); }
   if (tagFields.includes('vizinho') || tagFields.includes('parede')) {
+    /* calculados pelo app */
     const pos = posDe(c, tagFields.includes('parede'));
     if (tagFields.includes('vizinho') && pos.viz != null) l2.push('viz ' + fmtDist(pos.viz));
     if (tagFields.includes('parede')) l2.push('par ' + (pos.parede == null ? '…' : isFinite(pos.parede) ? (pos.revit ? '' : '~') + fmtDist(pos.parede) : '—'));
@@ -932,6 +934,9 @@ function renderCategoryFilters(){
 }
 function renderStatusFilter(){
   const el = $('status-filter');
+  /* A situação agora é a etapa marcada no celular; a Marca virou o tipo do
+     ponto. O filtro antigo por Marca fica desligado. */
+  el.hidden = true; statusFilter = 'all'; return;
   el.innerHTML = '';
   const c = counts();
   [['all', 'Todas'], ['pendente'], ['executado'], ['nao-conforme'], ['none']].forEach(([key, label]) => {
@@ -1009,14 +1014,8 @@ function renderBulk(){
 /* Nome de quem marca e modo de cor */
 $('who').value = store.get('campo3d-nome', '');
 $('who').addEventListener('input', () => store.set('campo3d-nome', $('who').value.trim()));
-function renderColorMode(){
-  document.querySelectorAll('#color-mode button').forEach((b) => b.classList.toggle('active', b.dataset.m === colorMode));
-}
-document.querySelectorAll('#color-mode button').forEach((b) => b.addEventListener('click', () => {
-  colorMode = b.dataset.m; store.set('campo3d-cor', colorMode); renderColorMode();
-  tomadaClusters.forEach(paintCluster); renderList(searchInput.value.trim().toLowerCase());
-}));
-renderColorMode();
+
+
 function applyFilters(reframe){
   const q = searchInput.value.trim().toLowerCase();
   $('search-clear').hidden = !q;
@@ -1048,7 +1047,7 @@ function renderList(q){
   renderBulk();
   $('panel-h').textContent = 'Tomadas · ' + (current ? current.label : '');
   $('panel-meta').textContent = tomadasOff ? 'As tomadas estão ocultas pelo filtro de categoria.'
-    : items.length + (items.length === 1 ? ' tomada' : ' tomadas') + ((q || statusFilter !== 'all' || etapaFilter !== 'all') ? ' encontradas' : '') + ' · ordem: não conforme, pendente, sem status, executado';
+    : items.length + (items.length === 1 ? ' tomada' : ' tomadas') + ((q || statusFilter !== 'all' || etapaFilter !== 'all') ? ' encontradas' : '') + '';
   if (!items.length) { listEl.innerHTML = '<div class="empty-hint">Nenhuma tomada com esse filtro.</div>'; return; }
   const frag = document.createDocumentFragment();
   items.forEach((c) => {
@@ -1059,7 +1058,7 @@ function renderList(q){
     b.innerHTML = dot + '<span class="t-name"></span><span class="t-h"></span><span class="t-sub"></span>';
     b.querySelector('.t-name').textContent = c.info.name;
     b.querySelector('.t-h').textContent = c.info.altura || '—';
-    b.querySelector('.t-sub').textContent = [ETAPAS[c.et.etapa].curto + (c.et.local ? ' (a enviar)' : ''), c.info.status !== 'none' && STATUS[c.info.status].label, c.info.sub, c.info.comentario].filter(Boolean).join(' · ');
+    b.querySelector('.t-sub').textContent = [ETAPAS[c.et.etapa].curto + (c.et.local ? ' (a enviar)' : ''), valorParam(c, 'Marca') || c.info.dims, c.info.comentario].filter(Boolean).join(' · ');
     b.addEventListener('click', () => {
       selectCluster(c, true);
       if (window.innerWidth <= 640) openPanel(false);
@@ -1101,11 +1100,6 @@ function selectCluster(c, focus){
   const i = c.info;
   selTitle.textContent = i.name;
   selMeasures.innerHTML = '';
-  const chip = document.createElement('span');
-  chip.className = 'status-chip st-' + i.status;
-  chip.innerHTML = '<span class="sdot"></span>';
-  chip.appendChild(document.createTextNode(STATUS[i.status].label));
-  selMeasures.appendChild(chip);
   camposDe(c).forEach((f) => {
     const s = document.createElement('span'); s.className = 'm'; s.textContent = f.rotulo + ': ';
     const b = document.createElement('b'); b.textContent = f.valor; s.appendChild(b); selMeasures.appendChild(s);
