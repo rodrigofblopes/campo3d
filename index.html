@@ -170,6 +170,22 @@
   .et-btn.on .edot{background:#0d1b2a;}
   .et-meta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;margin-top:6px;}
   .et-meta b{color:#fff2df;font-weight:600;}
+  #sel-bar{max-height:62%;overflow-y:auto;}
+  #tag-menu{position:absolute;left:66px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:18;background:rgba(19,28,40,0.96);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:10px 12px;color:#eaf1f8;width:220px;box-shadow:var(--shadow);}
+  #tag-menu .tm-h{font-family:"Archivo",sans-serif;font-weight:700;font-size:13px;margin-bottom:6px;}
+  #tag-menu .tm-s{font-size:11px;color:#a9b8c9;margin:8px 0 4px;}
+  #tag-menu label{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;cursor:pointer;min-height:32px;}
+  #tag-menu input{width:17px;height:17px;accent-color:#c9700f;}
+  .tag .tl{display:block;} .tag .tl + .tl{margin-top:2px;opacity:.85;font-weight:500;font-size:9.5px;}
+  .tag .tet{display:inline-flex;align-items:center;gap:4px;} .tag .tet i{width:6px;height:6px;border-radius:50%;background:var(--et);display:inline-block;}
+  .mini-btn{display:block;margin-top:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#ffcf80;border-radius:7px;padding:7px 10px;font:600 11.5px "Public Sans",sans-serif;cursor:pointer;min-height:34px;}
+  details.props{margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:6px;}
+  details.props summary{cursor:pointer;font-size:11.5px;font-weight:600;color:#a9b8c9;padding:4px 0;}
+  .props-h{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#ffcf80;margin:8px 0 2px;}
+  .props-r{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;font-size:11.5px;padding:1px 0;}
+  .props-r .k{color:#a9b8c9;overflow-wrap:anywhere;} .props-r .v{color:#eaf1f8;overflow-wrap:anywhere;}
+  .star{background:none;border:none;color:#8ea0b5;font-size:16px;cursor:pointer;padding:2px;min-height:28px;}
+  .star.on{color:#ffb020;} .star:disabled{cursor:default;opacity:.7;}
   .sync{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--text-dim);background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:6px 10px;white-space:nowrap;flex:none;cursor:pointer;}
   .sync i{width:7px;height:7px;border-radius:50%;background:var(--none);}
   .sync.ok i{background:var(--ok);} .sync.wait i{background:var(--warn);} .sync.off i{background:var(--bad);}
@@ -250,7 +266,7 @@
       <button class="icon-btn" id="btn-list" type="button" title="Buscar e listar tomadas" aria-label="Buscar e listar tomadas">
         <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M20 20l-5-5"/></svg>
       </button>
-      <button class="icon-btn active" id="btn-tags" type="button" title="Etiquetas de altura" aria-label="Etiquetas de altura">
+      <button class="icon-btn active" id="btn-tags" type="button" title="Etiquetas: o que mostrar" aria-label="Etiquetas: o que mostrar">
         <svg viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8" r="1.3"/></svg>
       </button>
       <button class="icon-btn" id="btn-measure" type="button" title="Medir distância" aria-label="Medir distância">
@@ -266,6 +282,13 @@
       <button class="icon-btn" id="btn-full" type="button" title="Tela cheia" aria-label="Tela cheia">
         <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
       </button>
+    </div>
+
+    <div id="tag-menu" hidden>
+      <div class="tm-h">Etiqueta no 3D</div>
+      <label class="tm-r"><input type="checkbox" id="tag-on"> Mostrar etiquetas</label>
+      <div class="tm-s">Mostrar na etiqueta:</div>
+      <div id="tag-fields"></div>
     </div>
 
     <div id="sel-bar">
@@ -334,6 +357,20 @@ const FLOORS = [
   { id: 'pav1', label: 'Pavimento Superior', rooms: [
     { id:'pav1', label:'Pavimento Superior inteiro', file:'modelos/pavimento-superior.glb', mb:2.0, all:true },
   ]},
+];
+/* Campos do balão do ponto. Para mostrar outro parâmetro do Revit para todos,
+   copie uma linha e troque "param" pelo nome exato que aparece em "Todas as
+   propriedades" no app (maiúsculas e acentos não importam). formato:
+   'distancia' mostra 0,40 como 40 cm. Campo vazio no Revit não aparece.
+   Cada pessoa também pode fixar mais campos no próprio aparelho, tocando na
+   estrela em "Todas as propriedades". */
+const CAMPOS = [
+  { rotulo: 'Altura',     param: 'Elevação do Ponto', formato: 'distancia' },
+  { rotulo: 'Tipo',       param: 'Type Dimensões' },
+  { rotulo: 'Circuito',   param: 'Circuito' },
+  { rotulo: 'Comando',    param: 'Comando' },
+  { rotulo: 'Ambiente',   param: 'Ambiente' },
+  { rotulo: 'Comentário', param: 'Comentários' },
 ];
 FLOORS.forEach((f) => f.rooms.forEach((r) => { r.floor = f; }));
 const ALL_ROOMS = FLOORS.flatMap((f) => f.rooms);
@@ -596,6 +633,42 @@ function describeCluster(c){
   c.info = { altura, alturaNum, comentario, status: st, dims, faixa, carga, id, sub,
     name: id ? 'Tomada #' + id : 'Tomada',
     search: [id, altura, comentario, STATUS[st].label, dims, faixa, carga].join(' ').toLowerCase() };
+  /* Propriedades de cada elemento do ponto (conjunto, módulos, caixa), o
+     conjunto principal primeiro. Base do balão e de "Todas as propriedades". */
+  const byEl = new Map();
+  c.entries.forEach((e) => {
+    const ud = e.mesh.userData || {};
+    const key = ud.elementId ? String(ud.elementId) : e.mesh.uuid;
+    if (!byEl.has(key)) byEl.set(key, { el: ud.elementId ? String(ud.elementId) : '', cat: ud.elementCategory || '', nome: e.name || '', params: paramsOf(e.mesh) });
+  });
+  c.props = [...byEl.values()].sort((a, b) => (b.el === id) - (a.el === id));
+  c.info.search += ' ' + camposDe(c).map((f) => f.valor).join(' ').toLowerCase();
+}
+
+/* ---------------- Campos configuráveis ---------------- */
+const RUIDO = /^(ifc|exportar|fase |recobrimento|type (tipo ifcguid|número omniclass|título omniclass|exportar|família|e-mail|url))/i;
+const norm = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+function valorParam(c, nome){
+  const alvo = norm(nome);
+  for (const pr of c.props || []) {
+    for (const k of Object.keys(pr.params)) {
+      if (norm(k) !== alvo) continue;
+      const v = pr.params[k];
+      if (v === undefined || v === null || v === '' || v === 'Não Listar') continue;
+      if (alvo === 'marca' && /^\d+$/.test(String(v))) continue; // numeração automática dos módulos
+      return String(v);
+    }
+  }
+  return '';
+}
+function formatar(v, formato){
+  if (formato === 'distancia') { const n = parseRevitNumber(v); return isFinite(n) ? fmtDist(n) : v; }
+  return v;
+}
+let favoritos = store.get('campo3d-campos', []);   // campos fixados neste aparelho
+function camposDe(c){
+  const lista = [...CAMPOS, ...favoritos.filter((f) => !CAMPOS.some((x) => norm(x.param) === norm(f))).map((f) => ({ rotulo: f.replace(/^Type /, ''), param: f, fav: true }))];
+  return lista.map((f) => ({ ...f, valor: formatar(valorParam(c, f.param), f.formato) })).filter((f) => f.valor);
 }
 
 /* ---------------- Índice do modelo ---------------- */
@@ -632,7 +705,77 @@ function buildIndex(root){
 function paintCluster(c){
   const m = colorMode === 'etapa' ? etapaMaterial(c.et.etapa) : statusMaterial(c.info.status);
   c.entries.forEach((e) => { e.mesh.material = m; });
-  if (c.tagEl) c.tagEl.className = 'tag ' + (colorMode === 'etapa' ? 'et-' + c.et.etapa : 'st-' + c.info.status) + (c === selectedCluster ? ' hit' : '');
+  if (c.tagEl) { c.tagEl.className = 'tag ' + (colorMode === 'etapa' ? 'et-' + c.et.etapa : 'st-' + c.info.status) + (c === selectedCluster ? ' hit' : ''); textoEtiqueta(c); }
+}
+
+/* ---------------- Conteúdo da etiqueta 3D ----------------
+   Cada pessoa escolhe no menu das etiquetas o que aparece; fica salvo no aparelho. */
+const ETIQ = [
+  ['tipo', 'Tipo do ponto'], ['altura', 'Altura'], ['vizinho', 'Distância ao ponto vizinho'],
+  ['parede', 'Distância à parede transversal'], ['etapa', 'Etapa (infra, enfiação…)'],
+];
+let tagFields = store.get('campo3d-etiqueta', ['altura']);
+function textoEtiqueta(c){
+  const el = c.tagEl; if (!el) return;
+  const esc = (t) => String(t).replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+  const l1 = [], l2 = [];
+  if (tagFields.includes('altura')) l1.push(c.info.altura || '?');
+  if (tagFields.includes('tipo') && c.info.dims) l1.push(c.info.dims.replace(/''/g, '"'));
+  if (tagFields.includes('vizinho') || tagFields.includes('parede')) {
+    const pos = posDe(c, tagFields.includes('parede'));
+    if (tagFields.includes('vizinho') && pos.viz != null) l2.push('viz ' + fmtDist(pos.viz));
+    if (tagFields.includes('parede')) l2.push('par ' + (pos.parede == null ? '…' : isFinite(pos.parede) ? (pos.revit ? '' : '~') + fmtDist(pos.parede) : '—'));
+  }
+  let html = '<span class="tl">' + esc(l1.join(' · ') || c.info.name) + '</span>';
+  if (l2.length) html += '<span class="tl">' + esc(l2.join(' · ')) + '</span>';
+  if (tagFields.includes('etapa')) html += '<span class="tl tet et-' + c.et.etapa + '"><i></i>' + esc(ETAPAS[c.et.etapa].curto) + '</span>';
+  el.innerHTML = html;
+}
+/* Posição calculada uma vez por ponto; a parede (raios no modelo) é calculada
+   aos poucos, em segundo plano, para não travar o celular no pavimento inteiro. */
+let filaParede = [];
+function posDe(c, querParede){
+  if (!c.pos) {
+    let dv = Infinity, viz = null;
+    tomadaClusters.forEach((o) => { if (o === c) return; const d = Math.hypot(o.center.x - c.center.x, o.center.z - c.center.z); if (d < dv) { dv = d; viz = o; } });
+    c.pos = { viz: viz ? dv : null, vizC: viz, paredes: undefined, parede: null };
+  }
+  if (querParede && c.pos.paredes === undefined && !filaParede.includes(c)) { filaParede.push(c); agendarParedes(); }
+  return c.pos;
+}
+/* Se o ponto tiver no Revit o parâmetro "Distância parede" (preenchido à mão
+   ou por Dynamo), vale ele; senão o app estima pelo modelo (marcado com ~). */
+function calcParede(c){
+  const rv = parseRevitNumber(valorParam(c, 'Distância parede'));
+  if (isFinite(rv)) { c.pos.paredes = [rv]; c.pos.parede = rv; c.pos.revit = true; return; }
+  const par = distParedes(c);
+  c.pos.paredes = par;
+  c.pos.parede = par ? Math.min(...par) : Infinity;
+  c.pos.revit = false;
+}
+let paredeTimer = null;
+function agendarParedes(){
+  if (paredeTimer) return;
+  paredeTimer = setTimeout(function passo(){
+    const t0 = performance.now();
+    while (filaParede.length && performance.now() - t0 < 12) { const c = filaParede.shift(); if (tomadaClusters.includes(c)) { calcParede(c); textoEtiqueta(c); } }
+    paredeTimer = filaParede.length ? setTimeout(passo, 16) : null;
+  }, 50);
+}
+function renderTagMenu(){
+  $('tag-on').checked = tagsOn;
+  const el = $('tag-fields'); el.innerHTML = '';
+  ETIQ.forEach(([k, label]) => {
+    const l = document.createElement('label');
+    const i = document.createElement('input'); i.type = 'checkbox'; i.checked = tagFields.includes(k);
+    i.addEventListener('change', () => {
+      tagFields = i.checked ? [...tagFields, k] : tagFields.filter((f) => f !== k);
+      store.set('campo3d-etiqueta', tagFields);
+      if (!tagsOn && i.checked) { tagsOn = true; $('tag-on').checked = true; applyTagState(); }
+      tomadaClusters.forEach(textoEtiqueta);
+    });
+    l.append(i, document.createTextNode(label)); el.appendChild(l);
+  });
 }
 
 /* ---------------- Etapas: estado, fila offline e sincronização ---------------- */
@@ -714,7 +857,8 @@ function buildTags(){
   tomadaClusters.forEach((c) => {
     const el = document.createElement('div');
     el.className = 'tag st-' + c.info.status;
-    el.textContent = c.info.altura || '?';
+    c.tagEl = el;
+    textoEtiqueta(c);
     el.title = c.info.name + ' · ' + STATUS[c.info.status].label;
     el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
     el.addEventListener('click', (ev) => { ev.stopPropagation(); selectCluster(c, false); });
@@ -730,7 +874,9 @@ function applyTagState(){
   tomadaClusters.forEach((c) => { if (c.tag) c.tag.visible = tagsOn && !measureOn && c.visible; });
   $('btn-tags').classList.toggle('active', tagsOn);
 }
-$('btn-tags').addEventListener('click', () => { tagsOn = !tagsOn; applyTagState(); });
+$('btn-tags').addEventListener('click', () => { const m = $('tag-menu'); m.hidden = !m.hidden; if (!m.hidden) renderTagMenu(); });
+$('tag-on').addEventListener('change', () => { tagsOn = $('tag-on').checked; applyTagState(); });
+$('stage').addEventListener('pointerdown', (e) => { if (!e.target.closest('#tag-menu') && !e.target.closest('#btn-tags')) $('tag-menu').hidden = true; });
 
 /* ---------------- Progresso ---------------- */
 function counts(){
@@ -960,11 +1106,13 @@ function selectCluster(c, focus){
   chip.innerHTML = '<span class="sdot"></span>';
   chip.appendChild(document.createTextNode(STATUS[i.status].label));
   selMeasures.appendChild(chip);
-  [['Altura', i.altura || '—'], ['Tipo', i.dims || '—'], ['Comentário', i.comentario || '—']].forEach(([k, v]) => {
-    const s = document.createElement('span'); s.className = 'm'; s.textContent = k + ': ';
-    const b = document.createElement('b'); b.textContent = v; s.appendChild(b); selMeasures.appendChild(s);
+  camposDe(c).forEach((f) => {
+    const s = document.createElement('span'); s.className = 'm'; s.textContent = f.rotulo + ': ';
+    const b = document.createElement('b'); b.textContent = f.valor; s.appendChild(b); selMeasures.appendChild(s);
   });
   renderSelEtapa(c);
+  renderPosicao(c);
+  renderProps(c);
   selBar.classList.add('show');
   if (focus) {
     const s = worldBox(c.box).getBoundingSphere(new THREE.Sphere());
@@ -1000,6 +1148,114 @@ function renderSelEtapa(c){
     meta.querySelector('b').textContent = ETAPAS[c.et.etapa].curto;
   } else meta.textContent = 'Etapa: não iniciado' + (store.get('campo3d-nome', '') ? '' : ' · informe seu nome na lista para assinar as marcações');
   box.appendChild(meta);
+}
+/* Caixa fixa dentro do balão, na ordem em que é criada pela primeira vez. */
+function selBox(id){
+  let box = $(id);
+  if (!box) { box = document.createElement('div'); box.id = id; selMeasures.parentNode.appendChild(box); }
+  box.innerHTML = '';
+  return box;
+}
+
+/* ---------------- Posição do ponto ----------------
+   Ponto vizinho: o mais próximo em planta, pelo centro. Paredes transversais:
+   acha a direção da parede pela guia do LSF mais próxima e mede, pelos dois
+   lados, até a primeira peça da estrutura que cruza o caminho, a 15 cm da face.
+   É medida no aço (sem placa) e só funciona com paredes alinhadas aos eixos
+   do Revit; quando não dá para medir, o app diz. */
+const rc2 = new THREE.Raycaster();
+function direcaoParede(p, estrut){
+  let dir = null, best = Infinity;
+  estrut.forEach((e) => {
+    const b = e.box, sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
+    if (Math.max(sx, sz) < 0.8 || Math.min(sx, sz) > 0.2 || sy > 0.3) return;   // só guias horizontais
+    const aoLongoX = sx > sz;
+    const dentro = aoLongoX ? p.x > b.min.x - 0.1 && p.x < b.max.x + 0.1 : p.z > b.min.z - 0.1 && p.z < b.max.z + 0.1;
+    if (!dentro) return;
+    const d = aoLongoX ? Math.abs(p.z - (b.min.z + b.max.z) / 2) : Math.abs(p.x - (b.min.x + b.max.x) / 2);
+    if (d < best) { best = d; dir = aoLongoX ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1); }
+  });
+  return best <= 0.3 ? dir : null;
+}
+function distParedes(c){
+  const estrut = meshIndex.filter((e) => e.cat === 'estrutura' || e.cat === 'suporte');
+  if (!estrut.length) return null;
+  const p = c.center.clone();
+  const dir = direcaoParede(p, estrut);
+  if (!dir) return null;
+  const n = new THREE.Vector3(dir.z, 0, -dir.x);
+  const alvos = estrut.map((e) => e.mesh);
+  return [dir, dir.clone().negate()].map((d) => {
+    let m = Infinity;
+    [0.15, -0.15].forEach((off) => {
+      rc2.set(p.clone().addScaledVector(n, off), d);
+      rc2.far = 8;
+      const hit = rc2.intersectObjects(alvos, false).find((h) => h.distance > 0.03);
+      if (hit) m = Math.min(m, hit.distance);
+    });
+    return m;
+  });
+}
+function renderPosicao(c){
+  const box = selBox('sel-pos');
+  box.className = 'et-meta';
+  const pos = posDe(c, false);
+  if (pos.paredes === undefined) calcParede(c);
+  const viz = pos.vizC, dv = pos.viz;
+  const linhas = [];
+  if (viz) linhas.push('Ponto vizinho: <b>' + fmtDist(dv) + '</b> até ' + viz.info.name.replace('Tomada ', '') + (Math.abs(viz.center.y - c.center.y) > 0.05 ? ' (' + (viz.info.altura || '?') + ' de altura)' : ''));
+  const par = pos.paredes;
+  if (pos.revit) linhas.push('Distância à parede: <b>' + fmtDist(pos.parede) + '</b> <span style="opacity:.75">(Revit)</span>');
+  else if (par) {
+    const txt = par.filter(isFinite).sort((a, b) => a - b).map((v) => '<b>~' + fmtDist(v) + '</b>');
+    linhas.push(txt.length ? 'Paredes transversais: ' + txt.join(' e ') + ' <span style="opacity:.75">(estimado no modelo, do centro até o aço; confira com a trena)</span>' : 'Paredes transversais: nenhuma no modelo a menos de 8 m');
+  } else linhas.push('Paredes transversais: não deu para medir neste ponto');
+  box.innerHTML = linhas.join('<br>');
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'mini-btn'; b.textContent = 'Medir a partir deste ponto';
+  b.addEventListener('click', () => { const p = c.center.clone(); setMeasure(true); addMeasurePoint(p); });
+  box.appendChild(b);
+}
+
+/* ---------------- Todas as propriedades ---------------- */
+let propsAbertas = false;
+function renderProps(c){
+  const box = selBox('sel-props');
+  const det = document.createElement('details');
+  det.className = 'props';
+  det.open = propsAbertas;
+  det.addEventListener('toggle', () => { propsAbertas = det.open; });
+  const sum = document.createElement('summary');
+  sum.textContent = 'Todas as propriedades · toque na estrela para fixar no balão';
+  det.appendChild(sum);
+  (c.props || []).forEach((pr) => {
+    const h = document.createElement('div');
+    h.className = 'props-h';
+    h.textContent = (pr.cat || 'Elemento') + (pr.el ? ' #' + pr.el : '');
+    det.appendChild(h);
+    Object.keys(pr.params).filter((k) => !RUIDO.test(k)).forEach((k) => {
+      const v = pr.params[k];
+      if (v === undefined || v === null || v === '' || v === 'Não Listar') return;
+      const row = document.createElement('div');
+      row.className = 'props-r';
+      const fav = favoritos.some((f) => norm(f) === norm(k)) || CAMPOS.some((f) => norm(f.param) === norm(k));
+      const st = document.createElement('button');
+      st.type = 'button'; st.className = 'star' + (fav ? ' on' : '');
+      st.textContent = fav ? '★' : '☆';
+      st.setAttribute('aria-label', (fav ? 'Tirar do balão: ' : 'Fixar no balão: ') + k);
+      st.disabled = CAMPOS.some((f) => norm(f.param) === norm(k));
+      st.addEventListener('click', () => {
+        favoritos = fav ? favoritos.filter((f) => norm(f) !== norm(k)) : [...favoritos, k];
+        store.set('campo3d-campos', favoritos);
+        selectCluster(c, false);
+      });
+      const kk = document.createElement('span'); kk.className = 'k'; kk.textContent = k;
+      const vv = document.createElement('span'); vv.className = 'v'; vv.textContent = String(v);
+      row.append(st, kk, vv);
+      det.appendChild(row);
+    });
+  });
+  box.appendChild(det);
 }
 function selectMesh(mesh){
   const entry = meshIndex.find((m) => m.mesh === mesh);
