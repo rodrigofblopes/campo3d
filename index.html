@@ -339,19 +339,24 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
    Revit e comprimido (meshopt) na pasta modelos/. box = limites em planta
    [xmin, ymin, xmax, ymax] nas coordenadas do Revit (iguais em todos os arquivos),
    usados só para desenhar a planta-chave.
-   Para dividir o Pavimento Superior em ambientes, basta acrescentar entradas
-   em "rooms" do mesmo jeito que no térreo. */
+   Os boxes da planta-chave são os limites do GLB (m) convertidos para pés
+   (x, -z), ajustados à mão onde os ambientes se sobrepõem. */
 const FLOORS = [
   { id: 'terreo', label: 'Térreo', rooms: [
-    { id:'terreo',     label:'Térreo inteiro',             file:'modelos/terreo-completo.glb',        mb:6.3, all:true, box:[-3.0,-38.4,74.0,2.0] },
-    { id:'escritorio', label:'Escritório · Lavabo · Hall', file:'modelos/escritorio-lavabo-hall.glb', mb:1.2, box:[-3.0,-16.6,17.0,2.0],  kp:'Escrit. / Hall' },
-    { id:'garagem',    label:'Garagem',                    file:'modelos/garagem.glb',                mb:1.2, box:[-3.0,-38.4,17.4,-15.9], kp:'Garagem' },
-    { id:'estar',      label:'Estar · Lounge',             file:'modelos/estar-lounge.glb',           mb:1.3, box:[16.3,-32.0,33.5,-2.0], kp:'Estar' },
-    { id:'jantar',     label:'Jantar · Cozinha',           file:'modelos/jantar-cozinha.glb',         mb:1.8, box:[31.7,-34.6,51.5,-3.0], kp:'Jantar / Coz.' },
-    { id:'gourmet',    label:'Gourmet · Serviço · I.S. · Brinquedoteca', file:'modelos/gourmet-servico-lazer.glb', mb:2.6, box:[49.6,-34.6,74.0,-3.0], kp:'Gourmet / Serv.' },
+    { id:'terreo',     label:'Térreo inteiro',             file:'modelos/terreo-completo.glb',        mb:7.9, all:true, box:[-3.0,-38.4,74.0,2.0] },
+    { id:'escritorio', label:'Escritório · Lavabo · Hall', file:'modelos/escritorio-lavabo-hall.glb', mb:1.6, box:[-3.0,-16.6,17.0,2.0],  kp:'Escrit. / Hall' },
+    { id:'garagem',    label:'Garagem',                    file:'modelos/garagem.glb',                mb:1.0, box:[-3.0,-38.4,17.4,-15.9], kp:'Garagem' },
+    { id:'estar',      label:'Estar · Lounge',             file:'modelos/estar-lounge.glb',           mb:1.8, box:[16.3,-32.0,33.5,-2.0], kp:'Estar' },
+    { id:'jantar',     label:'Jantar · Cozinha',           file:'modelos/jantar-cozinha.glb',         mb:2.4, box:[31.7,-34.6,51.5,-3.0], kp:'Jantar / Coz.' },
+    { id:'gourmet',    label:'Gourmet · Serviço · I.S. · Brinquedoteca', file:'modelos/gourmet-servico-lazer.glb', mb:2.9, box:[49.6,-34.6,74.0,-3.0], kp:'Gourmet / Serv.' },
   ]},
   { id: 'pav1', label: 'Pavimento Superior', rooms: [
-    { id:'pav1', label:'Pavimento Superior inteiro', file:'modelos/pavimento-superior.glb', mb:2.0, all:true },
+    { id:'pav1',       label:'Pavimento Superior inteiro', file:'modelos/pavimento-superior.glb',     mb:8.3, all:true, box:[-0.1,-31.3,70.9,0.1] },
+    { id:'master',     label:'Suíte e Closet Master',      file:'modelos/suite-closet-master.glb',    mb:1.8, box:[-0.1,-25.5,17.2,0.1],  kp:'Master' },
+    { id:'davi',       label:'Suíte Davi',                 file:'modelos/suite-davi.glb',             mb:1.6, box:[17.2,-21.7,32.3,-6.7], kp:'Davi' },
+    { id:'bela',       label:'Suíte Bela',                 file:'modelos/suite-bela.glb',             mb:1.5, box:[32.3,-21.7,48.3,-7.0], kp:'Bela' },
+    { id:'sara',       label:'Suíte Sara · Cinema',        file:'modelos/suite-sara-cinema.glb',      mb:3.1, box:[48.3,-31.3,70.9,-7.0], kp:'Sara / Cinema' },
+    { id:'circulacao', label:'BHO Master · Circulação · Rouparia · Escada', file:'modelos/bho-circulacao-escada.glb', mb:2.9, box:[17.2,-31.3,48.3,-21.7], kp:'Circ. / Escada' },
   ]},
 ];
 /* Campos do balão do ponto. Para mostrar outro parâmetro do Revit para todos,
@@ -530,7 +535,7 @@ function renderFloors(){
     b.textContent = f.label;
     b.addEventListener('click', () => {
       if (current && current.floor === f) return;
-      selectRoom(lastRoomByFloor[f.id] || f.rooms.find((r) => r.id === 'garagem') || f.rooms[0]);
+      selectRoom(lastRoomByFloor[f.id] || f.rooms.find((r) => r.id === 'garagem') || f.rooms.find((r) => !r.all) || f.rooms[0]);
     });
     el.appendChild(b);
   });
