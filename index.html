@@ -1137,7 +1137,7 @@ function selectCluster(c, focus){
     const bb = document.createElement('b'); bb.textContent = f.valor; sp.appendChild(bb); selMeasures.appendChild(sp);
   });
   renderSelEtapa(c);
-  renderMais(c);
+  /* Posição calculada e todas as propriedades saíram do balão (renderMais) a pedido da obra. */
   selBar.classList.add('show');
   if (focus) {
     const s = worldBox(c.box).getBoundingSphere(new THREE.Sphere());
