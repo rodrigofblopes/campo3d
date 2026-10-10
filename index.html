@@ -99,6 +99,7 @@
   .cat-chip{display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.08);background:var(--overlay);border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:600;color:var(--overlay-dim);cursor:pointer;}
   .cat-chip .swatch{width:9px;height:9px;border-radius:50%;flex:none;}
   .cat-chip.active{color:#fff;border-color:var(--accent);}
+  .cat-chip.cx-chip{cursor:default;color:#eaf1f8;}
   .cat-chip .n{font-family:"IBM Plex Mono",monospace;opacity:.8;margin-left:auto;padding-left:6px;font-variant-numeric:tabular-nums;}
 
   /* ---- Balão da seleção ---- */
@@ -109,6 +110,16 @@
   .sel-measures{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
   .sel-measures .m{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;}
   .sel-measures .m b{color:#fff2df;font-weight:600;}
+  #sel-bar .sel-title{font-size:15px;line-height:1.25;margin-bottom:8px;padding-right:4px;}
+  .cotas{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-bottom:2px;}
+  .cota{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .cota .cl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#a9b8c9;}
+  .cota b{font-size:15px;font-weight:700;color:#fff;line-height:1.25;overflow-wrap:anywhere;}
+  .cota em{font-style:normal;font-size:11px;font-weight:700;}
+  .cota.loco.ok{border-color:rgba(74,196,120,.55);background:rgba(74,196,120,.12);} .cota.loco.ok em{color:#7fe0a3;}
+  .cota.loco.dif{border-color:rgba(255,170,60,.6);background:rgba(255,170,60,.13);} .cota.loco.dif em{color:#ffc06a;}
+  .cota.vazio{grid-column:1/-1;font-size:12px;color:#a9b8c9;}
+  #sel-bar{min-width:min(340px,calc(100% - 24px));}
   .status-chip{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
   .sdot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block;}
   .st-executado .sdot,.sdot.st-executado{background:var(--ok);}
@@ -369,13 +380,8 @@ const FLOORS = [
    Comentários = distância (ao ponto ao lado, à parede). A situação é a etapa
    marcada no celular. */
 const CAMPOS = [
-  { rotulo: 'Tipo',       param: 'Marca' },
-  { rotulo: 'Altura',     param: 'Elevação do Ponto', formato: 'distancia' },
-  { rotulo: 'Distância',  param: 'Comentários' },
-  { rotulo: 'Modelo',     param: 'Type Dimensões' },
-  { rotulo: 'Circuito',   param: 'Circuito' },
-  { rotulo: 'Comando',    param: 'Comando' },
-  { rotulo: 'Ambiente',   param: 'Ambiente' },
+  { rotulo: 'Cota em projeto', param: 'Cota em Projeto' },
+  { rotulo: 'Cota in loco',    param: 'Cota in loco' },
 ];
 FLOORS.forEach((f) => f.rooms.forEach((r) => { r.floor = f; }));
 const ALL_ROOMS = FLOORS.flatMap((f) => f.rooms);
@@ -436,7 +442,7 @@ function updateTagVisibility(){
 const CATEGORY_STYLE = {
   estrutura: { color: 0x9aa4b2, metalness: 0.85, roughness: 0.28, opacity: 0.3, label: 'Estrutura LSF' },
   conduite:  { color: 0xffd400, metalness: 0.05, roughness: 0.4, opacity: 1, label: 'Conduítes' },
-  tomada:    { color: 0xf2efe8, metalness: 0.05, roughness: 0.35, opacity: 1, label: 'Tomadas' },
+  tomada:    { color: 0xf2efe8, metalness: 0.05, roughness: 0.35, opacity: 1, label: 'Pontos' },
   suporte:   { color: 0x5b8ac9, metalness: 0.5, roughness: 0.45, opacity: 1, label: 'Suportes' },
 };
 const CATEGORY_ORDER = ['estrutura', 'conduite', 'tomada', 'suporte'];
@@ -484,7 +490,7 @@ function categorize(p){
   const n = p.toLowerCase();
   if (/perfil.*lsf/.test(n)) return 'suporte';
   if (/conduite|eletroduto|caixa/.test(n)) return 'conduite';
-  if (/tomada/.test(n)) return 'tomada';
+  if (/tomada|interruptor|dispositivos de (ilumina|comunica|telefonia)/.test(n)) return 'tomada';
   return 'estrutura';
 }
 
@@ -501,7 +507,7 @@ let fila = store.get('campo3d-fila', []);      // marcações ainda não enviada
 let syncState = 'wait', syncBusy = false;
 let bulkPending = null;
 let selectedCluster = null;
-let tagsOn = true;
+let tagsOn = store.get('campo3d-tags', false);   // etiquetas só se a pessoa ligar
 const cache = new Map();       // id -> root já montado (troca instantânea ao voltar)
 const downloaded = new Set();  // arquivos já baixados (cache offline)
 const loader = new GLTFLoader();
@@ -636,7 +642,7 @@ function describeCluster(c){
   const st = status || 'none';
   const sub = [dims, faixa && ('altura ' + faixa.toLowerCase()), carga].filter(Boolean).join(' · ');
   c.info = { altura, alturaNum, comentario, status: st, dims, faixa, carga, id, sub,
-    name: id ? 'Tomada #' + id : 'Tomada',
+    name: id ? 'Ponto #' + id : 'Ponto',
     search: [id, altura, comentario, STATUS[st].label, dims, faixa, carga].join(' ').toLowerCase() };
   /* Propriedades de cada elemento do ponto (conjunto, módulos, caixa), o
      conjunto principal primeiro. Base do balão e de "Todas as propriedades". */
@@ -647,7 +653,8 @@ function describeCluster(c){
     if (!byEl.has(key)) byEl.set(key, { el: ud.elementId ? String(ud.elementId) : '', cat: ud.elementCategory || '', nome: e.name || '', params: paramsOf(e.mesh) });
   });
   c.props = [...byEl.values()].sort((a, b) => (b.el === id) - (a.el === id));
-  c.info.search += ' ' + camposDe(c).map((f) => f.valor).join(' ').toLowerCase();
+  c.info.marca = valorParam(c, 'Marca').replace(/''/g, '"');
+  c.info.search += ' ' + [c.info.marca, ...camposDe(c).map((f) => f.valor)].join(' ').toLowerCase();
 }
 
 /* ---------------- Campos configuráveis ---------------- */
@@ -704,6 +711,13 @@ function buildIndex(root){
     describeCluster(c);
     c.et = etapaDe(c.info.id);
     paintCluster(c);
+  });
+  /* A caixa 4x2 do ponto (conduíte) abre o mesmo balão do ponto. */
+  meshIndex.forEach((e) => {
+    if (e.pointGroup || !/caixa/i.test(e.name || '')) return;
+    let best = null, bd = 0.2;
+    tomadaClusters.forEach((c) => { const d = c.center.distanceTo(e.center); if (d < bd) { bd = d; best = c; } });
+    if (best) e.pointGroup = best;
   });
   tomadaClusters.sort((a, b) => STATUS[a.info.status].order - STATUS[b.info.status].order || (a.info.alturaNum || 0) - (b.info.alturaNum || 0));
 }
@@ -878,6 +892,7 @@ function buildTags(){
   applyTagState();
 }
 function applyTagState(){
+  store.set('campo3d-tags', tagsOn);
   tomadaClusters.forEach((c) => { if (c.tag) c.tag.visible = tagsOn && !measureOn && c.visible; });
   $('btn-tags').classList.toggle('active', tagsOn);
 }
@@ -905,7 +920,7 @@ function renderTomadaProgress(){
   const ate = (k) => n.slice(k).reduce((a, b) => a + b, 0);
   const pct = (k) => Math.round(ate(k) / c.all * 100);
   $('tp-track').innerHTML = [4, 3, 2, 1].map((k) => '<i class="et-' + k + '" style="width:' + (n[k] / c.all * 100) + '%;background:var(--et)"></i>').join('');
-  $('tp-text').innerHTML = '<b>Infra ' + pct(1) + '%</b> · ' + c.all + ' tomadas' + '<span class="tp-2">' + (current.all ? '' : ' no ambiente') +
+  $('tp-text').innerHTML = '<b>Infra ' + pct(1) + '%</b> · ' + c.all + ' pontos' + '<span class="tp-2">' + (current.all ? '' : ' no ambiente') +
     '<br>Enf. ' + pct(2) + '% · Acab. ' + pct(3) + '% · Teste ' + pct(4) + '%' + (c['nao-conforme'] ? ' &nbsp;<span class="tp-nc">' + c['nao-conforme'] + ' n/c</span>' : '') + '</span>';
   /* Tomadas na divisa entre ambientes saem em mais de um arquivo; por isso o
      total oficial do pavimento é o da aba "inteiro", não a soma das abas. */
@@ -917,24 +932,25 @@ function renderTomadaProgress(){
 $('tomada-progress').addEventListener('click', () => openPanel(true));
 
 /* ---------------- Filtros: categoria, status e busca ---------------- */
+/* Contagem de caixas do ambiente (elementos únicos do Revit), no lugar das
+   categorias: caixa octogonal (teto) e caixa 4x2 (parede). */
 function renderCategoryFilters(){
   const el = $('cat-filters');
   el.innerHTML = '';
-  const n = {};
-  meshIndex.forEach((m) => { n[m.cat] = (n[m.cat] || 0) + 1; });
-  n.tomada = tomadaClusters.length;
-  CATEGORY_ORDER.forEach((cat) => {
-    if (!n[cat]) return;
-    const s = CATEGORY_STYLE[cat];
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'cat-chip' + (activeCats.has(cat) ? ' active' : '');
-    b.innerHTML = '<span class="swatch" style="background:#' + s.color.toString(16).padStart(6, '0') + '"></span>' + s.label + '<span class="n">' + n[cat] + '</span>';
-    b.addEventListener('click', () => {
-      activeCats.has(cat) ? activeCats.delete(cat) : activeCats.add(cat);
-      renderCategoryFilters(); applyFilters(true);
-    });
-    el.appendChild(b);
+  activeCats.clear();
+  const octo = new Set(), c42 = new Set();
+  meshIndex.forEach((m) => {
+    const nome = m.name || '';
+    if (!/caixa/i.test(nome)) return;
+    const id = (m.mesh.userData && m.mesh.userData.elementId) || m.mesh.uuid;
+    if (/octogonal/i.test(nome)) octo.add(id);
+    else if (/4\s*x\s*2/i.test(nome)) c42.add(id);
+  });
+  [['Caixa octogonal', octo.size], ['Caixa 4x2', c42.size]].forEach(([rot, n]) => {
+    const d = document.createElement('div');
+    d.className = 'cat-chip cx-chip';
+    d.innerHTML = '<span class="swatch" style="background:#ffd400"></span>' + rot + '<span class="n">' + n + '</span>';
+    el.appendChild(d);
   });
 }
 function renderStatusFilter(){
@@ -1052,7 +1068,7 @@ function renderList(q){
   renderBulk();
   $('panel-h').textContent = 'Tomadas · ' + (current ? current.label : '');
   $('panel-meta').textContent = tomadasOff ? 'As tomadas estão ocultas pelo filtro de categoria.'
-    : items.length + (items.length === 1 ? ' tomada' : ' tomadas') + ((q || statusFilter !== 'all' || etapaFilter !== 'all') ? ' encontradas' : '') + '';
+    : items.length + (items.length === 1 ? ' ponto' : ' pontos') + ((q || statusFilter !== 'all' || etapaFilter !== 'all') ? ' encontrados' : '') + '';
   if (!items.length) { listEl.innerHTML = '<div class="empty-hint">Nenhuma tomada com esse filtro.</div>'; return; }
   const frag = document.createDocumentFragment();
   items.forEach((c) => {
@@ -1061,7 +1077,7 @@ function renderList(q){
     b.className = 't-row' + (c === selectedCluster ? ' selected' : '');
     const dot = colorMode === 'etapa' ? '<span class="edot et-' + c.et.etapa + '"></span>' : '<span class="sdot st-' + c.info.status + '"></span>';
     b.innerHTML = dot + '<span class="t-name"></span><span class="t-h"></span><span class="t-sub"></span>';
-    b.querySelector('.t-name').textContent = c.info.name;
+    b.querySelector('.t-name').textContent = c.info.marca || c.info.name;
     b.querySelector('.t-h').textContent = c.info.altura || '—';
     b.querySelector('.t-sub').textContent = [ETAPAS[c.et.etapa].curto + (c.et.local ? ' (a enviar)' : ''), valorParam(c, 'Marca') || c.info.dims, c.info.comentario].filter(Boolean).join(' · ');
     b.addEventListener('click', () => {
@@ -1103,15 +1119,25 @@ function selectCluster(c, focus){
   if (c.tagEl) c.tagEl.classList.add('hit');
   outline(c.entries.map((e) => e.mesh), 0xc9700f);
   const i = c.info;
-  selTitle.textContent = i.name;
+  selTitle.textContent = (valorParam(c, 'Marca') || i.dims || i.name).replace(/''/g, '"');
   selMeasures.innerHTML = '';
-  camposDe(c).forEach((f) => {
-    const s = document.createElement('span'); s.className = 'm'; s.textContent = f.rotulo + ': ';
-    const b = document.createElement('b'); b.textContent = f.valor; s.appendChild(b); selMeasures.appendChild(s);
+  const esc = (t) => String(t).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m]);
+  const proj = valorParam(c, 'Cota em Projeto'), loco = valorParam(c, 'Cota in loco');
+  const igual = proj && loco && norm(proj).replace(/\s+/g, ' ') === norm(loco).replace(/\s+/g, ' ');
+  const cotas = document.createElement('div');
+  cotas.className = 'cotas';
+  if (!proj && !loco) cotas.innerHTML = '<div class="cota vazio">Cotas não preenchidas no Revit</div>';
+  else cotas.innerHTML =
+    '<div class="cota"><span class="cl">Cota em projeto</span><b>' + esc(proj || '—') + '</b></div>' +
+    '<div class="cota loco ' + (!loco ? '' : igual ? 'ok' : 'dif') + '"><span class="cl">Cota in loco</span><b>' + esc(loco || '—') + '</b>' +
+    (loco && proj ? '<em>' + (igual ? 'confere' : 'difere do projeto') + '</em>' : '') + '</div>';
+  selMeasures.appendChild(cotas);
+  camposDe(c).filter((f) => f.fav).forEach((f) => {
+    const sp = document.createElement('span'); sp.className = 'm'; sp.textContent = f.rotulo + ': ';
+    const bb = document.createElement('b'); bb.textContent = f.valor; sp.appendChild(bb); selMeasures.appendChild(sp);
   });
   renderSelEtapa(c);
-  renderPosicao(c);
-  renderProps(c);
+  renderMais(c);
   selBar.classList.add('show');
   if (focus) {
     const s = worldBox(c.box).getBoundingSphere(new THREE.Sphere());
@@ -1195,14 +1221,32 @@ function distParedes(c){
     return m;
   });
 }
-function renderPosicao(c){
-  const box = selBox('sel-pos');
+let maisAberto = false;
+function renderMais(c){
+  const box = selBox('sel-mais');
+  const det = document.createElement('details');
+  det.className = 'props';
+  det.open = maisAberto;
+  const sum = document.createElement('summary');
+  sum.textContent = 'Mais detalhes · posição e todas as propriedades';
+  det.appendChild(sum);
+  box.appendChild(det);
+  const preencher = () => {
+    if (det.dataset.ok) return; det.dataset.ok = '1';
+    const pos = document.createElement('div'); det.appendChild(pos); renderPosicao(c, pos);
+    const pr = document.createElement('div'); det.appendChild(pr); renderProps(c, pr);
+  };
+  det.addEventListener('toggle', () => { maisAberto = det.open; if (det.open) preencher(); });
+  if (det.open) preencher();
+}
+function renderPosicao(c, alvo){
+  const box = alvo || selBox('sel-pos');
   box.className = 'et-meta';
   const pos = posDe(c, false);
   if (pos.paredes === undefined) calcParede(c);
   const viz = pos.vizC, dv = pos.viz;
   const linhas = [];
-  if (viz) linhas.push('Ponto vizinho: <b>' + fmtDist(dv) + '</b> até ' + viz.info.name.replace('Tomada ', '') + (Math.abs(viz.center.y - c.center.y) > 0.05 ? ' (' + (viz.info.altura || '?') + ' de altura)' : ''));
+  if (viz) linhas.push('Ponto vizinho: <b>' + fmtDist(dv) + '</b> até ' + viz.info.name.replace('Ponto ', '') + (Math.abs(viz.center.y - c.center.y) > 0.05 ? ' (' + (viz.info.altura || '?') + ' de altura)' : ''));
   const par = pos.paredes;
   if (pos.revit) linhas.push('Distância à parede: <b>' + fmtDist(pos.parede) + '</b> <span style="opacity:.75">(Revit)</span>');
   else if (par) {
@@ -1218,8 +1262,8 @@ function renderPosicao(c){
 
 /* ---------------- Todas as propriedades ---------------- */
 let propsAbertas = false;
-function renderProps(c){
-  const box = selBox('sel-props');
+function renderProps(c, alvo){
+  const box = alvo || selBox('sel-props');
   const det = document.createElement('details');
   det.className = 'props';
   det.open = propsAbertas;
