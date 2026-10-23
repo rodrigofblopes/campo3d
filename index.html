@@ -71,10 +71,6 @@
   .legend{position:absolute;right:12px;top:12px;z-index:15;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px;min-width:150px;}
   .legend .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--overlay-dim);padding:2px 6px 3px;background:none;border:none;cursor:pointer;width:100%;}
   .legend.min .chip{display:none;}
-  .modo{display:flex;align-items:center;gap:3px;background:rgba(255,255,255,.07);border-radius:9px;padding:3px;margin:0 2px 3px;}
-  .modo span{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--overlay-dim);padding:0 6px 0 4px;}
-  .modo button{flex:1;border:none;background:transparent;color:var(--overlay-ink);font-size:12px;font-weight:700;padding:6px 8px;border-radius:7px;cursor:pointer;}
-  .modo button.on{background:#fff;color:#0d1b2a;}
   .chip{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;border-radius:8px;padding:5px 7px;font-size:12px;font-weight:600;color:var(--overlay-ink);cursor:pointer;text-align:left;}
   .chip .sw{width:10px;height:10px;border-radius:3px;flex:none;}
   .chip .n{margin-left:auto;padding-left:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--overlay-dim);}
@@ -224,7 +220,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 
 /* ================= Dados da obra ================= */
 const OBRA = 'amaggi';
-const MODELO = 'modelos/paineis-pv1.glb';
+const MODELO = 'modelos/paineis-pv1-r2.glb'; // r2: sem os planos das aberturas
 const ST = [
   { n:'Não iniciado', c:'#b8c1cc' },
   { n:'Montado',      c:'#93c6ee' },
@@ -372,9 +368,9 @@ const matSt = ST.map((s) => new THREE.MeshStandardMaterial({ color: s.c, roughne
 // Painel selecionado: laranja forte pulsando + contorno escuro.
 const matHi = new THREE.MeshStandardMaterial({ color: '#ff7a00', roughness: .45, metalness: .05, emissive: new THREE.Color('#ff6a00'), emissiveIntensity: .5, side: THREE.DoubleSide, flatShading: true });
 const matEdge = new THREE.LineBasicMaterial({ color: '#1a0d00', transparent: true, opacity: .9 });
-// Modo "Painel": cada painel com uma cor própria (vizinhos de número ficam com cores bem diferentes).
-const corPainel = (num) => { const c = new THREE.Color(); c.setHSL(((num * 0.381966) % 1), 0.52, 0.6, THREE.SRGBColorSpace); return c; };
-const matPainel = new Map();
+// Não iniciado = cores do projeto (isométrica): rosa nos painéis externos, amarelo nos internos.
+// Essas cores já vêm nos materiais do GLB; só ligamos o flatShading (o GLB não tem normais).
+const COR_PROJETO = 'linear-gradient(135deg,#f59b9b 50%,#f2e600 50%)';
 const matDim = new THREE.MeshStandardMaterial({ color: '#c9d1da', transparent: true, opacity: .14, depthWrite: false, side: THREE.DoubleSide, flatShading: true });
 const matCtx = new THREE.MeshStandardMaterial({ color: '#d6dbe1', transparent: true, opacity: .32, depthWrite: false, side: THREE.DoubleSide, flatShading: true });
 
@@ -382,7 +378,7 @@ const paineis = new Map();   // code -> {obj, meshes[], box, center, tag}
 const ctxObjs = [];
 let alvoPick = [];
 let sel = null, filtro = null;
-let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true), modoCor = ls.get(LS.cor, 'painel');
+let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true);
 let modelBox = new THREE.Box3();
 
 function resize(){
@@ -405,9 +401,11 @@ loader.load(MODELO, (gltf) => {
       const box = new THREE.Box3().setFromObject(o);
       const info = { code, obj: o, meshes, box, center: box.getCenter(new THREE.Vector3()), vol: p['Volume'] || '' };
       meshes.forEach((m) => { m.userData.code = code; });
-      const cp = corPainel(PECA[code].num);
-      matPainel.set(code, new THREE.MeshStandardMaterial({ color: cp, roughness: .65, metalness: .05, side: THREE.DoubleSide, flatShading: true }));
-      info.cor = '#' + cp.getHexString(THREE.SRGBColorSpace);
+      meshes.forEach((m) => {
+        const o = m.material; o.flatShading = true; o.side = THREE.DoubleSide; o.metalness = 0.05; o.roughness = 0.7;
+        if (o.opacity < 1) { o.transparent = true; } o.needsUpdate = true; m.userData.orig = o;
+      });
+      info.cor = '#' + meshes[0].material.color.getHexString(THREE.SRGBColorSpace);
       const el = document.createElement('div'); el.className = 'tag'; el.textContent = code.replace(/^PV1-/, '');
       el.addEventListener('click', (e) => { e.stopPropagation(); selecionar(code, false); });
       const tag = new CSS2DObject(el); tag.position.set(info.center.x, box.max.y + 0.12, info.center.z); scene.add(tag);
@@ -451,10 +449,11 @@ function pintar(){
   paineis.forEach((p) => {
     const e = etapa(p.code);
     const fora = filtro != null && e !== filtro && sel !== p.code;
-    const base = modoCor === 'painel' ? matPainel.get(p.code) : matSt[e];
-    const m = sel === p.code ? matHi : (fora ? matDim : base);
-    p.meshes.forEach((x) => { x.material = m; x.renderOrder = fora ? 1 : 0; });
-    p.el.style.setProperty('--c', modoCor === 'painel' ? p.cor : ST[e].c);
+    p.meshes.forEach((x) => {
+      x.material = sel === p.code ? matHi : fora ? matDim : (e === 0 ? x.userData.orig : matSt[e]);
+      x.renderOrder = fora ? 1 : 0;
+    });
+    p.el.style.setProperty('--c', e === 0 ? p.cor : ST[e].c);
     p.el.classList.toggle('sel', sel === p.code);
     p.el.classList.toggle('dim', fora && sel !== p.code);
   });
@@ -548,11 +547,9 @@ function renderLegenda(){
   const lg = $('legend'); const min = lg.classList.contains('min');
   lg.classList.toggle('filtering', filtro != null);
   lg.innerHTML = `<button class="lh" id="lg-h"><span>PV1 · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
-    `<div class="modo"><span>Cores</span><button data-m="painel" class="${modoCor === 'painel' ? 'on' : ''}">Painel</button><button data-m="status" class="${modoCor === 'status' ? 'on' : ''}">Status</button></div>` +
-    ST.map((s, i) => `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${s.c}"></span>${s.n}<span class="n">${c[i]}</span></button>`).join('');
+    ST.map((s, i) => `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${i === 0 ? COR_PROJETO : s.c}"></span>${i === 0 ? 'Não iniciado (cor do projeto)' : s.n}<span class="n">${c[i]}</span></button>`).join('');
   lg.querySelectorAll('.chip').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
   $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
-  lg.querySelectorAll('.modo button').forEach((b) => b.onclick = () => { modoCor = b.dataset.m; ls.set(LS.cor, modoCor); refresh(); });
 }
 
 /* --- folha do painel --- */
