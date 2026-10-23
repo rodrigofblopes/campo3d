@@ -1,12 +1,14 @@
 /* API das etapas de execução (Campo3D).
    GET  /api/etapas?obra=l14q13          -> etapa atual de cada ponto da obra
-   POST /api/etapas  {obra, marcacoes:[{elemento, etapa, autor, ambiente, em}]}
+   POST /api/etapas  {obra, marcacoes:[{elemento, etapa, autor, ambiente, em, nota}]}
+   Obra Amaggi (painéis LSF): 0 não iniciado · 1 montado · 2 levantado · 3 prumo ok ·
+   4 esquadro ok · 5 com problema (nota = descrição do problema).
    Banco: Postgres (Neon) ligado ao projeto no Vercel, variável DATABASE_URL.
    As tabelas são criadas na primeira chamada. Última marcação vence, pela hora
    em que foi feita no celular (a fila offline pode chegar fora de ordem). */
 import { neon } from '@neondatabase/serverless';
 
-const ETAPA_MAX = 4; // 0 não iniciado · 1 infra · 2 enfiação · 3 acabamento · 4 testado
+const ETAPA_MAX = 5;
 let pronto = null;
 
 function db(){
@@ -26,6 +28,8 @@ async function criarTabelas(sql){
       id bigserial primary key, obra text not null, elemento text not null,
       etapa smallint not null, ambiente text, autor text,
       marcado_em timestamptz not null, recebido_em timestamptz not null default now())`;
+    await sql`alter table etapa_ponto add column if not exists nota text`;
+    await sql`alter table etapa_historico add column if not exists nota text`;
   })().catch((e) => { pronto = null; throw e; });
   return pronto;
 }
@@ -41,10 +45,10 @@ export default async function handler(req, res){
     if (req.method === 'GET') {
       const obra = txt(req.query.obra, 40);
       if (!obra) return res.status(400).json({ erro: 'Informe a obra' });
-      const linhas = await sql`select elemento, etapa, autor, ambiente, marcado_em
+      const linhas = await sql`select elemento, etapa, autor, ambiente, nota, marcado_em
         from etapa_ponto where obra = ${obra}`;
       const pontos = {};
-      linhas.forEach((l) => { pontos[l.elemento] = { etapa: l.etapa, autor: l.autor, ambiente: l.ambiente, em: l.marcado_em }; });
+      linhas.forEach((l) => { pontos[l.elemento] = { etapa: l.etapa, autor: l.autor, ambiente: l.ambiente, nota: l.nota, em: l.marcado_em }; });
       return res.status(200).json({ obra, pontos, agora: new Date().toISOString() });
     }
 
@@ -59,13 +63,13 @@ export default async function handler(req, res){
         const etapa = Number(m.etapa);
         if (!elemento || !Number.isInteger(etapa) || etapa < 0 || etapa > ETAPA_MAX) continue;
         const em = isNaN(Date.parse(m.em)) ? new Date().toISOString() : new Date(m.em).toISOString();
-        const autor = txt(m.autor, 60) || 'Sem nome', ambiente = txt(m.ambiente, 60);
-        await sql`insert into etapa_historico (obra, elemento, etapa, ambiente, autor, marcado_em)
-          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${em})`;
-        await sql`insert into etapa_ponto (obra, elemento, etapa, ambiente, autor, marcado_em)
-          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${em})
+        const autor = txt(m.autor, 60) || 'Sem nome', ambiente = txt(m.ambiente, 60), nota = txt(m.nota, 500);
+        await sql`insert into etapa_historico (obra, elemento, etapa, ambiente, autor, nota, marcado_em)
+          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${nota}, ${em})`;
+        await sql`insert into etapa_ponto (obra, elemento, etapa, ambiente, autor, nota, marcado_em)
+          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${nota}, ${em})
           on conflict (obra, elemento) do update set
-            etapa = excluded.etapa, ambiente = excluded.ambiente, autor = excluded.autor,
+            etapa = excluded.etapa, nota = excluded.nota, ambiente = excluded.ambiente, autor = excluded.autor,
             marcado_em = excluded.marcado_em, recebido_em = now()
           where etapa_ponto.marcado_em <= excluded.marcado_em`;
         salvas++;

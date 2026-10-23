@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Elétrica 3D — Obra do Fábio</title>
-<meta name="description" content="Visualizador 3D das instalações elétricas da obra do Fábio, por pavimento e ambiente, para análise do serviço a ser executado em campo.">
+<title>Montagem de Painéis — Obra Amaggi</title>
+<meta name="description" content="Acompanhamento da montagem dos painéis LSF da obra Amaggi: 3D dos painéis, status de cada um e prancha de montagem.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="/campo3d.webmanifest">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
-<link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,319 +17,192 @@
   :root{
     color-scheme:light;
     --bg:#eef2f6;--panel:#ffffff;--panel-2:#f5f7fa;--text:#0d1b2a;--text-dim:#52657a;
-    --border:#cdd8e3;--accent:#c9700f;--accent-ink:#fff7ec;--accent-soft:rgba(201,112,15,.14);--viewport:#f4f6f8;
-    --overlay:rgba(19,28,40,0.86);--overlay-ink:#dfe9f5;--overlay-dim:#8ea0b5;
-    --ok:#2ecc71;--warn:#ffb020;--bad:#ff5a5a;--none:#8ea0b5;
-    --shadow:0 8px 24px -8px rgba(13,27,42,0.18);
+    --border:#cdd8e3;--accent:#c9700f;--accent-ink:#fff7ec;--viewport:#f4f6f8;
+    --overlay:rgba(19,28,40,0.88);--overlay-ink:#dfe9f5;--overlay-dim:#8ea0b5;
+    --s0:#b8c1cc;--s1:#93c6ee;--s2:#4b8fdb;--s3:#2257a8;--s4:#22a05a;--s5:#e04646;
+    --shadow:0 10px 30px -10px rgba(13,27,42,0.28);
   }
   *{box-sizing:border-box;}
   [hidden]{display:none!important;}
   html,body{height:100%;margin:0;}
   body{background:var(--bg);color:var(--text);font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden;}
-  button{font-family:inherit;}
-  .app{position:fixed;inset:0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);}
+  button,input,textarea{font-family:inherit;font-size:inherit;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;}
+  .app{position:fixed;inset:0;display:flex;flex-direction:column;}
 
   /* ---- Topo ---- */
-  .topbar{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 16px 8px;
-    padding-top:calc(10px + env(safe-area-inset-top,0px));background:var(--panel);z-index:20;}
-  .brand{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .topbar{flex:none;display:flex;align-items:center;gap:10px 14px;padding:10px 16px 10px;padding-top:calc(10px + env(safe-area-inset-top,0px));
+    background:var(--panel);border-bottom:1px solid var(--border);z-index:20;}
+  .brand{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;}
   .brand .mark{font-family:"Archivo",sans-serif;font-weight:800;font-size:11px;letter-spacing:.07em;color:var(--accent);white-space:nowrap;text-transform:uppercase;}
   .brand h1{font-family:"Archivo",sans-serif;font-weight:700;font-size:16px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .floor-switch{display:flex;gap:3px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:3px;flex:none;}
-  .floor-btn{border:none;background:transparent;padding:6px 11px;border-radius:7px;font-size:12px;font-weight:600;color:var(--text-dim);cursor:pointer;white-space:nowrap;}
-  .floor-btn.active{background:var(--text);color:#fff;}
-  .topbar-spacer{flex:1;}
-  .tomada-progress{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:6px 11px;flex:none;cursor:pointer;color:inherit;}
-  .tomada-progress:hover{border-color:var(--accent);}
-  .tp-track{width:64px;height:6px;border-radius:3px;background:var(--border);overflow:hidden;flex:none;display:flex;}
-  .tp-track i{display:block;height:100%;}
-  .tp-text{font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.3;color:var(--text-dim);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:left;}
-  .tp-text b{color:var(--text);font-weight:700;font-size:12px;}
-  .tp-exec{color:#1f9d57;font-weight:600;} .tp-pend{color:#b86f00;font-weight:600;} .tp-nc{color:#d13b3b;font-weight:600;}
+  .prog{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:6px 11px;flex:none;cursor:pointer;color:inherit;}
+  .prog:hover{border-color:var(--accent);}
+  .prog-track{width:84px;height:7px;border-radius:4px;background:#e2e8ef;overflow:hidden;display:flex;}
+  .prog-track i{display:block;height:100%;}
+  .prog-text{font-size:10.5px;line-height:1.3;color:var(--text-dim);white-space:nowrap;text-align:left;}
+  .prog-text b{color:var(--text);font-weight:700;font-size:12.5px;}
+  .who{display:flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--panel-2);border-radius:999px;padding:6px 11px 6px 9px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text);flex:none;max-width:170px;}
+  .who span.n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--s0);}
+  .dot.on{background:var(--s4);} .dot.wait{background:#f0a020;} .dot.off{background:var(--s5);}
+  @media (max-width:560px){ .topbar{flex-wrap:wrap;padding-bottom:8px;} .prog{order:3;width:100%;} .prog-track{flex:1;width:auto;} .who{max-width:140px;} .brand h1{font-size:15px;} .legend{min-width:0;} }
 
-  /* ---- Abas de ambiente ---- */
-  .rooms{flex:none;display:flex;gap:6px;overflow-x:auto;padding:0 16px 10px;background:var(--panel);border-bottom:1px solid var(--border);
-    scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;}
-  .rooms::-webkit-scrollbar{display:none;}
-  .room-btn{flex:none;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-    border:1px solid var(--border);background:var(--panel-2);border-radius:10px;padding:7px 12px 6px;cursor:pointer;color:var(--text);text-align:left;}
-  .room-btn .rn{font-size:12.5px;font-weight:700;white-space:nowrap;}
-  .room-btn .rm{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--text-dim);white-space:nowrap;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;}
-  .room-btn .rm .off{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);}
-  .room-btn.all{border-style:dashed;}
-  .room-btn.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
-  .room-btn.active .rm{color:var(--accent-ink);opacity:.85;}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-
+  /* ---- Palco 3D ---- */
   .stage{position:relative;flex:1;min-height:0;background:var(--viewport);overflow:hidden;}
-  #canvas-holder{position:absolute;inset:0;}
-  #canvas-holder canvas{display:block;width:100%;height:100%;touch-action:none;}
-  #label-layer{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  #view{position:absolute;inset:0;}
+  #view canvas{display:block;width:100%;height:100%;touch-action:none;}
+  #labels{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;line-height:1;padding:3px 5px 3px;border-radius:5px;background:rgba(255,255,255,.92);color:#0d1b2a;
+    border:1px solid rgba(13,27,42,.18);border-left:3px solid var(--c,#b8c1cc);white-space:nowrap;pointer-events:auto;cursor:pointer;user-select:none;}
+  .tag.sel{background:#0d1b2a;color:#fff;border-color:#0d1b2a;border-left-color:var(--c);}
+  .tag.dim{opacity:.18;pointer-events:none;}
 
-  #loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(244,246,248,.92);font-family:"IBM Plex Mono",monospace;z-index:30;transition:opacity .3s ease;}
-  #loading .mono-label{font-size:11.5px;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;text-align:center;padding:0 16px;}
+  #loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(244,246,248,.94);z-index:30;transition:opacity .3s;}
+  #loading .lbl{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;text-align:center;padding:0 16px;}
   #loading .pct{font-family:"Archivo",sans-serif;font-weight:800;font-size:32px;}
-  .bar-track{width:200px;height:5px;border-radius:3px;background:var(--border);overflow:hidden;}
-  .bar-fill{height:100%;width:0%;background:var(--accent);transition:width .15s ease;}
+  .bar{width:200px;height:5px;border-radius:3px;background:var(--border);overflow:hidden;}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s;}
   #loading.hide{opacity:0;pointer-events:none;}
-  #load-error{display:none;color:#c0392b;font-size:12px;max-width:280px;text-align:center;line-height:1.5;}
+  #load-err{color:#c0392b;font-size:12.5px;max-width:300px;text-align:center;line-height:1.5;}
 
-  /* ---- Planta-chave ---- */
-  #keyplan{position:absolute;left:12px;top:12px;z-index:15;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:7px 8px 8px;color:var(--overlay-ink);}
-  #keyplan .kp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;background:none;border:none;color:var(--overlay-dim);cursor:pointer;padding:0 0 5px;width:100%;
-    font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;}
-  #keyplan.min .kp-head{padding:0;}
-  #keyplan.min svg.kp{display:none;}
-  #keyplan svg.kp{display:block;width:176px;height:auto;}
-  .kp rect.room{fill:rgba(255,255,255,.06);stroke:rgba(223,233,245,.45);stroke-width:.35;cursor:pointer;transition:fill .15s;}
-  .kp rect.room:hover{fill:rgba(255,255,255,.14);}
-  .kp rect.room.active{fill:rgba(201,112,15,.55);stroke:#ffb35c;stroke-width:.6;}
-  .kp rect.outline{fill:none;stroke:rgba(223,233,245,.25);stroke-width:.3;stroke-dasharray:1 1;}
-  .kp text{fill:#dfe9f5;font-family:"Public Sans",sans-serif;font-size:2.6px;font-weight:700;pointer-events:none;}
+  /* legenda / filtro */
+  .legend{position:absolute;right:12px;top:12px;z-index:15;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px;min-width:150px;}
+  .legend .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--overlay-dim);padding:2px 6px 3px;background:none;border:none;cursor:pointer;width:100%;}
+  .legend.min .chip{display:none;}
+  .chip{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;border-radius:8px;padding:5px 7px;font-size:12px;font-weight:600;color:var(--overlay-ink);cursor:pointer;text-align:left;}
+  .chip .sw{width:10px;height:10px;border-radius:3px;flex:none;}
+  .chip .n{margin-left:auto;padding-left:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--overlay-dim);}
+  .chip.on{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff;}
+  .legend.filtering .chip:not(.on){opacity:.5;}
 
-  /* ---- Ferramentas ---- */
-  .toolbar{position:absolute;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:6px;z-index:15;}
-  .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--overlay-ink);cursor:pointer;flex:none;}
-  .icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-  .icon-btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
-  .toolbar hr{width:100%;border:none;border-top:1px solid rgba(255,255,255,0.12);margin:2px 0;}
+  .toolbar{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:5px;z-index:15;}
+  .ib{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--overlay-ink);cursor:pointer;}
+  .ib svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .ib.on{background:var(--accent);color:var(--accent-ink);}
+  .toolbar hr{width:100%;border:none;border-top:1px solid rgba(255,255,255,.12);margin:1px 0;}
 
-  .cat-toggle{position:absolute;right:12px;top:12px;z-index:15;display:flex;flex-direction:column;gap:5px;align-items:stretch;}
-  .cat-chip{display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.08);background:var(--overlay);border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:600;color:var(--overlay-dim);cursor:pointer;}
-  .cat-chip .swatch{width:9px;height:9px;border-radius:50%;flex:none;}
-  .cat-chip.active{color:#fff;border-color:var(--accent);}
-  .cat-chip.cx-chip{cursor:default;color:#eaf1f8;}
-  .cat-chip .n{font-family:"IBM Plex Mono",monospace;opacity:.8;margin-left:auto;padding-left:6px;font-variant-numeric:tabular-nums;}
+  #toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:#0d1b2a;color:#fff;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:999px;z-index:40;box-shadow:var(--shadow);opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;}
+  #toast.show{opacity:1;}
 
-  /* ---- Balão da seleção ---- */
-  #sel-bar{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;max-width:min(560px,calc(100% - 150px));background:rgba(19,28,40,0.94);border:1px solid rgba(255,255,255,0.1);border-radius:11px;padding:9px 12px;color:#eaf1f8;display:none;align-items:flex-start;gap:10px;z-index:16;}
-  #sel-bar.show{display:flex;}
-  #sel-bar .sel-title{font-weight:700;font-size:12.5px;margin-bottom:4px;}
-  #sel-bar #sel-close{margin-left:auto;flex:none;background:none;border:none;color:#8ea0b5;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;}
-  .sel-measures{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
-  .sel-measures .m{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;}
-  .sel-measures .m b{color:#fff2df;font-weight:600;}
-  #sel-bar .sel-title{font-size:15px;line-height:1.25;margin-bottom:8px;padding-right:4px;}
-  .cotas{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-bottom:2px;}
-  .cota{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;min-width:0;}
-  .cota .cl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#a9b8c9;}
-  .cota b{font-size:15px;font-weight:700;color:#fff;line-height:1.25;overflow-wrap:anywhere;}
-  .cota em{font-style:normal;font-size:11px;font-weight:700;}
-  .cota.loco.ok{border-color:rgba(74,196,120,.55);background:rgba(74,196,120,.12);} .cota.loco.ok em{color:#7fe0a3;}
-  .cota.loco.dif{border-color:rgba(255,170,60,.6);background:rgba(255,170,60,.13);} .cota.loco.dif em{color:#ffc06a;}
-  .cota.vazio{grid-column:1/-1;font-size:12px;color:#a9b8c9;}
-  #sel-bar{min-width:min(340px,calc(100% - 24px));}
-  .status-chip{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
-  .sdot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block;}
-  .st-executado .sdot,.sdot.st-executado{background:var(--ok);}
-  .st-pendente .sdot,.sdot.st-pendente{background:var(--warn);}
-  .st-nao-conforme .sdot,.sdot.st-nao-conforme{background:var(--bad);}
-  .st-none .sdot,.sdot.st-none{background:var(--none);}
-  .status-chip.st-executado{background:rgba(46,204,113,0.16);color:#8beab0;}
-  .status-chip.st-pendente{background:rgba(255,176,32,0.16);color:#ffcf80;}
-  .status-chip.st-nao-conforme{background:rgba(255,90,90,0.16);color:#ffaaaa;}
-  .status-chip.st-none{background:rgba(142,160,181,0.12);color:#a9b8c9;}
+  /* ---- Folha do painel ---- */
+  #sheet{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(460px,calc(100% - 24px));
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);z-index:25;padding:14px 14px 12px;display:flex;flex-direction:column;gap:11px;max-height:calc(100% - 24px);overflow:auto;}
+  .sh-head{display:flex;align-items:flex-start;gap:10px;}
+  .sh-head h2{font-family:"Archivo",sans-serif;font-weight:800;font-size:22px;margin:0;line-height:1.1;letter-spacing:-.01em;}
+  .sh-head .sub{font-size:12px;color:var(--text-dim);margin-top:3px;}
+  .sh-head .sp{flex:1;}
+  .x{border:none;background:var(--panel-2);width:32px;height:32px;border-radius:8px;color:var(--text-dim);font-size:18px;cursor:pointer;flex:none;}
+  .nav{display:flex;gap:4px;flex:none;}
+  .nav button{border:1px solid var(--border);background:var(--panel-2);height:32px;min-width:32px;border-radius:8px;cursor:pointer;color:var(--text);font-size:15px;}
+  .cur{display:flex;align-items:center;gap:9px;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;}
+  .cur .sw{width:12px;height:12px;border-radius:4px;flex:none;}
+  .cur b{font-size:14px;}
+  .cur .meta{margin-left:auto;font-size:11px;color:var(--text-dim);text-align:right;}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .step{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:9px 4px 8px;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--text);min-height:58px;justify-content:center;text-align:center;line-height:1.15;}
+  .step .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;}
+  .step.done .ck{background:var(--c);border-color:var(--c);}
+  .step.now{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c);}
+  .row2{display:flex;gap:6px;}
+  .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);background:var(--panel-2);border-radius:10px;padding:10px 10px;cursor:pointer;font-weight:700;font-size:13px;color:var(--text);text-decoration:none;}
+  .btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  .btn.primary{background:var(--text);border-color:var(--text);color:#fff;}
+  .btn.bad{color:#b62f2f;border-color:#f0c4c4;background:#fff5f5;}
+  .btn.bad.on{background:var(--s5);border-color:var(--s5);color:#fff;}
+  .btn.ghost{flex:none;background:none;border-color:transparent;color:var(--text-dim);font-weight:600;font-size:12px;padding:8px 6px;}
+  .prob{display:flex;flex-direction:column;gap:6px;}
+  .prob textarea{width:100%;min-height:62px;border:1px solid var(--border);border-radius:10px;padding:8px 10px;resize:vertical;font-size:14px;}
+  .note{font-size:12.5px;background:#fff5f5;border:1px solid #f0c4c4;color:#7d1f1f;border-radius:10px;padding:8px 10px;}
+  .facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--text-dim);}
+  .facts b{color:var(--text);font-weight:600;}
 
-  /* ---- Etiquetas 3D e medição ---- */
-  .tag{pointer-events:auto;cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;line-height:1;padding:3px 6px;border-radius:5px;background:rgba(13,27,42,.86);color:#fff;white-space:nowrap;border-left:3px solid var(--none);transform:translateY(-14px);font-variant-numeric:tabular-nums;}
-  .tag.st-executado{border-left-color:var(--ok);} .tag.st-pendente{border-left-color:var(--warn);} .tag.st-nao-conforme{border-left-color:var(--bad);}
-  .tag.hit{outline:2px solid var(--accent);}
-  .mtag{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:6px;background:var(--accent);color:var(--accent-ink);white-space:nowrap;text-align:center;line-height:1.25;font-variant-numeric:tabular-nums;box-shadow:var(--shadow);}
-  .mtag small{display:block;font-weight:500;font-size:9.5px;opacity:.9;}
-  #hint{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;z-index:17;background:var(--text);color:#fff;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;box-shadow:var(--shadow);max-width:min(420px,calc(100% - 150px));text-align:center;}
-  #hint button{background:none;border:none;color:#ffcf80;font-weight:700;cursor:pointer;padding:0 0 0 8px;font-size:12px;}
+  /* ---- Lista ---- */
+  #list{position:absolute;top:0;right:0;bottom:0;width:min(400px,100%);background:var(--panel);border-left:1px solid var(--border);z-index:28;display:flex;flex-direction:column;box-shadow:var(--shadow);}
+  .lh2{display:flex;align-items:center;gap:8px;padding:12px 12px 8px;}
+  .lh2 h3{font-family:"Archivo",sans-serif;font-size:16px;margin:0;flex:1;}
+  .search{margin:0 12px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:0 10px;background:var(--panel-2);}
+  .search svg{width:16px;height:16px;stroke:var(--text-dim);fill:none;stroke-width:2;}
+  .search input{border:none;background:transparent;flex:1;padding:10px 0;outline:none;font-size:15px;}
+  .groups{display:flex;gap:5px;padding:10px 12px 6px;overflow-x:auto;scrollbar-width:none;}
+  .groups button{flex:none;border:1px solid var(--border);background:var(--panel-2);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);display:flex;flex-direction:column;align-items:flex-start;gap:1px;}
+  .groups button small{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:500;color:var(--text-dim);}
+  .groups button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+  .groups button.on small{color:var(--accent-ink);opacity:.85;}
+  .items{flex:1;overflow:auto;padding:4px 6px 10px;}
+  .it{display:flex;align-items:center;gap:10px;width:100%;border:none;background:none;padding:9px 8px;border-radius:9px;cursor:pointer;text-align:left;color:var(--text);}
+  .it:hover{background:var(--panel-2);}
+  .it.sel{background:#fdf1e3;}
+  .it .sw{width:11px;height:11px;border-radius:3px;flex:none;}
+  .it .cd{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13.5px;width:64px;flex:none;}
+  .it .st{font-size:12.5px;flex:1;min-width:0;}
+  .it .st small{display:block;font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .it .no3d{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--text-dim);border:1px dashed var(--border);border-radius:5px;padding:2px 5px;flex:none;}
+  .lfoot{border-top:1px solid var(--border);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--text-dim);}
+  .empty{padding:20px;text-align:center;color:var(--text-dim);font-size:13px;}
 
-  /* ---- Painel: busca + lista de tomadas ---- */
-  #panel{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:88vw;background:var(--panel);border-left:1px solid var(--border);box-shadow:var(--shadow);transition:transform .25s ease;display:flex;flex-direction:column;z-index:25;}
-  #panel.closed{transform:translateX(105%);}
-  .panel-handle{display:none;flex:none;justify-content:center;padding:9px 0 3px;cursor:pointer;background:none;border:none;width:100%;}
-  .panel-handle span{width:40px;height:4px;border-radius:2px;background:var(--border);}
-  .panel-head{flex:none;padding:12px 14px 10px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px;}
-  .panel-title{display:flex;align-items:center;justify-content:space-between;}
-  .panel-title h2{font-family:"Archivo",sans-serif;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text-dim);margin:0;}
-  .panel-title button{background:none;border:none;font-size:20px;line-height:1;color:var(--text-dim);cursor:pointer;padding:2px 4px;}
-  .search-wrap{position:relative;}
-  .search-wrap input{width:100%;padding:9px 32px 9px 32px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;font-family:inherit;}
-  .search-wrap input:focus{outline:2px solid var(--accent);outline-offset:-1px;}
-  .search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--text-dim);fill:none;stroke-width:2;}
-  .search-wrap .clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;color:var(--text-dim);cursor:pointer;padding:4px 8px;}
-  .status-filter{display:flex;flex-wrap:wrap;gap:6px;}
-  .sf-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--panel-2);border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--text-dim);cursor:pointer;}
-  .sf-btn .n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;}
-  .sf-btn.active{border-color:var(--text);background:var(--text);color:#fff;}
-  .panel-meta{font-size:11.5px;color:var(--text-dim);}
-  .panel-body{flex:none;padding:6px 8px 14px;}
-  #panel{overflow-y:auto;overscroll-behavior:contain;}
-  .panel-head{position:relative;}
-  .t-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 10px;width:100%;padding:9px 8px;border:none;border-bottom:1px solid var(--panel-2);background:none;text-align:left;cursor:pointer;color:var(--text);}
-  .t-row:hover{background:var(--panel-2);}
-  .t-row.selected{background:var(--accent-soft);}
-  .t-row .t-name{font-size:13px;font-weight:700;}
-  .t-row .t-sub{grid-column:2 / 4;font-size:11.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .t-row .t-h{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;}
-  .empty-hint{padding:24px 10px;text-align:center;color:var(--text-dim);font-size:12.5px;line-height:1.6;}
-
-  /* ---- Etapas de execução (marcadas no celular) ---- */
-  .et-0{--et:#b9c3cf;} .et-1{--et:#ffb020;} .et-2{--et:#3b8fe0;} .et-3{--et:#9b6fe0;} .et-4{--et:#2ecc71;}
-  .edot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;background:var(--et,#b9c3cf);}
-  .tag[class*="et-"]{border-left-color:var(--et);}
-  .etapa-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-  .et-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#dfe9f5;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;min-height:38px;}
-  .et-btn.done{background:rgba(255,255,255,.12);}
-  .et-btn.on{background:var(--et);border-color:var(--et);color:#0d1b2a;}
-  .et-btn.on .edot{background:#0d1b2a;}
-  .et-meta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#a9b8c9;margin-top:6px;}
-  .et-meta b{color:#fff2df;font-weight:600;}
-  #sel-bar{max-height:62%;overflow-y:auto;}
-  #tag-menu{position:absolute;left:66px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:18;background:rgba(19,28,40,0.96);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:10px 12px;color:#eaf1f8;width:220px;box-shadow:var(--shadow);}
-  #tag-menu .tm-h{font-family:"Archivo",sans-serif;font-weight:700;font-size:13px;margin-bottom:6px;}
-  #tag-menu .tm-s{font-size:11px;color:#a9b8c9;margin:8px 0 4px;}
-  #tag-menu label{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;cursor:pointer;min-height:32px;}
-  #tag-menu input{width:17px;height:17px;accent-color:#c9700f;}
-  .tag .tl{display:block;} .tag .tl + .tl{margin-top:2px;opacity:.85;font-weight:500;font-size:9.5px;}
-  .tag .tet{display:inline-flex;align-items:center;gap:4px;} .tag .tet i{width:6px;height:6px;border-radius:50%;background:var(--et);display:inline-block;}
-  .mini-btn{display:block;margin-top:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#ffcf80;border-radius:7px;padding:7px 10px;font:600 11.5px "Public Sans",sans-serif;cursor:pointer;min-height:34px;}
-  details.props{margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:6px;}
-  details.props summary{cursor:pointer;font-size:11.5px;font-weight:600;color:#a9b8c9;padding:4px 0;}
-  .props-h{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#ffcf80;margin:8px 0 2px;}
-  .props-r{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;font-size:11.5px;padding:1px 0;}
-  .props-r .k{color:#a9b8c9;overflow-wrap:anywhere;} .props-r .v{color:#eaf1f8;overflow-wrap:anywhere;}
-  .star{background:none;border:none;color:#8ea0b5;font-size:16px;cursor:pointer;padding:2px;min-height:28px;}
-  .star.on{color:#ffb020;} .star:disabled{cursor:default;opacity:.7;}
-  .sync{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--text-dim);background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:6px 10px;white-space:nowrap;flex:none;cursor:pointer;}
-  .sync i{width:7px;height:7px;border-radius:50%;background:var(--none);}
-  .sync.ok i{background:var(--ok);} .sync.wait i{background:var(--warn);} .sync.off i{background:var(--bad);}
-  .etapa-filter,.bulk{display:flex;flex-wrap:wrap;gap:6px;}
-  .sf-btn.et-f.active{background:var(--et);border-color:var(--et);color:#0d1b2a;}
-  .sf-btn.et-f.active .edot{background:#0d1b2a;}
-  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:2px;}
-  .seg button{border:none;background:none;padding:5px 9px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--text-dim);cursor:pointer;}
-  .seg button.active{background:var(--text);color:#fff;}
-  .row-line{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
-  .who{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:13px;font-family:inherit;}
-  .bulk-box{border:1px dashed var(--border);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:6px;}
-  .bulk-box .lbl{font-size:11.5px;color:var(--text-dim);}
-  .bulk .sf-btn{padding:5px 9px;}
-  .bulk-confirm{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:600;}
-  .bulk-confirm button{border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-weight:700;cursor:pointer;background:var(--panel-2);}
-  .bulk-confirm button.yes{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
-
-  @media (max-width:640px){
-    #sel-bar{left:62px;right:8px;transform:none;width:auto;max-width:none;}
-    .sync span{display:none;}
-    .brand h1{font-size:14px;}
-    .icon-btn{width:40px;height:40px;}
-    .icon-btn svg{width:19px;height:19px;}
-    .floor-btn{padding:7px 11px;}
-    .tp-track{width:44px;}
-    #keyplan svg.kp{width:148px;}
-    .cat-chip{padding:5px 9px;font-size:11px;}
-    .cat-toggle{gap:4px;}
-    .tp-2{display:none;}
-    .tomada-progress{padding:6px 10px;}
-    .topbar{gap:8px 10px;}
-    .panel-handle{display:flex;}
-    #panel{top:auto;left:0;right:0;width:100%;max-width:100%;height:64%;border-left:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0;}
-    #panel.closed{transform:translateY(105%);}
-    .panel-title button{display:none;}
-  }
+  /* ---- Diálogo do nome ---- */
+  #namedlg{position:fixed;inset:0;background:rgba(13,27,42,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;}
+  #namedlg form{background:var(--panel);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow);}
+  #namedlg h3{margin:0;font-family:"Archivo",sans-serif;font-size:17px;}
+  #namedlg p{margin:0;font-size:13px;color:var(--text-dim);line-height:1.45;}
+  #namedlg input{border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-size:16px;}
   @media (prefers-reduced-motion:reduce){ *{transition:none!important;} }
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="topbar">
-    <div class="brand">
-      <span class="mark">Obra &mdash; Fábio e Brunielly (L14Q13)</span>
-      <h1 id="room-title">Térreo</h1>
-    </div>
-    <div class="floor-switch" id="floor-switch"></div>
-    <div class="topbar-spacer"></div>
-    <button class="tomada-progress" id="tomada-progress" type="button" hidden>
-      <span class="tp-track" id="tp-track"></span>
-      <span class="tp-text" id="tp-text">&mdash;</span>
+  <header class="topbar">
+    <div class="brand"><span class="mark">Obra Amaggi · LSF</span><h1>Montagem de painéis</h1></div>
+    <button class="prog" id="prog" title="Abrir a lista de peças">
+      <span class="prog-track" id="prog-track"></span>
+      <span class="prog-text mono" id="prog-text"><b>0</b>/0 com esquadro ok</span>
     </button>
-    <button class="sync" id="sync" type="button" title="Situação do envio das marcações"><i></i><span id="sync-txt">Conectando…</span></button>
-  </div>
-  <nav class="rooms" id="rooms" aria-label="Ambientes do pavimento"></nav>
+    <button class="who" id="who" title="Seu nome e sincronização"><span class="dot" id="sync-dot"></span><span class="n" id="who-name">Identificar</span></button>
+  </header>
 
-  <div class="stage" id="stage">
-    <div id="canvas-holder"></div>
-    <div id="label-layer"></div>
+  <main class="stage">
+    <div id="view"></div>
+    <div id="labels"></div>
 
-    <div id="keyplan">
-      <button class="kp-head" id="kp-head" type="button"><span>Planta-chave</span><span id="kp-caret">&minus;</span></button>
-      <svg class="kp" id="kp-svg" aria-label="Planta-chave do pavimento"></svg>
-    </div>
-
-    <div class="cat-toggle" id="cat-filters"></div>
-    <div id="hint" hidden></div>
-
-    <div id="loading">
-      <div class="mono-label" id="load-label">Carregando</div>
-      <div class="pct" id="load-pct">0%</div>
-      <div class="bar-track"><div class="bar-fill" id="load-bar"></div></div>
-      <div id="load-error"></div>
-    </div>
-
-    <div class="toolbar">
-      <button class="icon-btn" id="btn-list" type="button" title="Buscar e listar tomadas" aria-label="Buscar e listar tomadas">
-        <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M20 20l-5-5"/></svg>
-      </button>
-      <button class="icon-btn active" id="btn-tags" type="button" title="Etiquetas: o que mostrar" aria-label="Etiquetas: o que mostrar">
-        <svg viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8" r="1.3"/></svg>
-      </button>
-      <button class="icon-btn" id="btn-measure" type="button" title="Medir distância" aria-label="Medir distância">
-        <svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>
-      </button>
+    <div class="toolbar" role="toolbar" aria-label="Ferramentas">
+      <button class="ib" id="b-list" title="Lista de peças"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></button>
       <hr>
-      <button class="icon-btn" id="btn-reset" type="button" title="Enquadrar ambiente" aria-label="Enquadrar ambiente">
-        <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
-      </button>
-      <button class="icon-btn" id="btn-top" type="button" title="Vista de cima" aria-label="Vista de cima">
-        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12h9M13 4v16"/></svg>
-      </button>
-      <button class="icon-btn" id="btn-full" type="button" title="Tela cheia" aria-label="Tela cheia">
-        <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-      </button>
+      <button class="ib" id="b-fit" title="Enquadrar tudo"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button class="ib" id="b-top" title="Ver em planta"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 12h9v8M13 4v4"/></svg></button>
+      <button class="ib" id="b-tags" title="Números dos painéis"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 4l-2 16M16 4l-2 16"/></svg></button>
+      <button class="ib" id="b-ctx" title="Paredes e louças de referência"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/></svg></button>
     </div>
 
-    <div id="tag-menu" hidden>
-      <div class="tm-h">Etiqueta no 3D</div>
-      <label class="tm-r"><input type="checkbox" id="tag-on"> Mostrar etiquetas</label>
-      <div class="tm-s">Mostrar na etiqueta:</div>
-      <div id="tag-fields"></div>
-    </div>
+    <div class="legend" id="legend"></div>
+    <script>if (innerWidth < 560) document.getElementById('legend').classList.add('min');</script>
 
-    <div id="sel-bar">
-      <div style="min-width:0;">
-        <div class="sel-title" id="sel-title"></div>
-        <div class="sel-measures" id="sel-measures"></div>
+    <div id="loading"><div class="lbl" id="load-lbl">Carregando painéis do PV1</div><div class="pct" id="load-pct">0%</div><div class="bar"><i id="load-bar"></i></div><div id="load-err" hidden></div></div>
+    <div id="toast"></div>
+
+    <section id="sheet" hidden aria-live="polite"></section>
+
+    <aside id="list" hidden>
+      <div class="lh2"><h3>Peças</h3><button class="x" id="list-x" aria-label="Fechar lista">×</button></div>
+      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="q" type="search" placeholder="Buscar: 23, PV2-07, TR-3…" inputmode="search" autocomplete="off"></label>
+      <div class="groups" id="groups"></div>
+      <div class="items" id="items"></div>
+      <div class="lfoot">
+        <button class="btn" id="b-offline"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span>Baixar as pranchas para usar sem internet</span></button>
+        <span id="sync-info"></span>
       </div>
-      <button id="sel-close" type="button" title="Fechar" aria-label="Fechar">&times;</button>
-    </div>
-
-    <aside id="panel" class="closed" aria-label="Tomadas do ambiente">
-      <button class="panel-handle" id="panel-handle" type="button" aria-label="Fechar lista"><span></span></button>
-      <div class="panel-head">
-        <div class="panel-title"><h2 id="panel-h">Tomadas</h2><button id="panel-close" type="button" aria-label="Fechar">&times;</button></div>
-        <div class="search-wrap">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input id="search" type="search" placeholder="Buscar: nº, 20A, 110 cm, comentário…" autocomplete="off" enterkeyhint="search">
-          <button class="clear" id="search-clear" type="button" aria-label="Limpar busca" hidden>&times;</button>
-        </div>
-        <input class="who" id="who" type="text" placeholder="Seu nome (aparece nas marcações)" autocomplete="name" maxlength="60">
-        <div class="etapa-filter" id="etapa-filter"></div>
-        <div class="status-filter" id="status-filter"></div>
-        <div class="bulk-box" id="bulk-box">
-          <div class="lbl" id="bulk-lbl"></div>
-          <div class="bulk" id="bulk"></div>
-        </div>
-        <div class="panel-meta" id="panel-meta"></div>
-      </div>
-      <div class="panel-body" id="t-list"></div>
     </aside>
-  </div>
+  </main>
+</div>
+
+<div id="namedlg" hidden>
+  <form id="nameform">
+    <h3>Quem está marcando?</h3>
+    <p>Seu nome aparece junto de cada marcação, para a equipe saber quem conferiu o painel.</p>
+    <input id="name-in" maxlength="40" placeholder="Seu nome" autocomplete="name" required>
+    <div class="row2"><button type="button" class="btn" id="name-cancel">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div>
+  </form>
 </div>
 
 <script type="importmap">
@@ -346,1153 +218,431 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-/* Pavimentos e ambientes. Cada ambiente é um GLB exportado de uma vista 3D do
-   Revit e comprimido (meshopt) na pasta modelos/. box = limites em planta
-   [xmin, ymin, xmax, ymax] nas coordenadas do Revit (iguais em todos os arquivos),
-   usados só para desenhar a planta-chave.
-   Os boxes da planta-chave são os limites do GLB (m) convertidos para pés
-   (x, -z), ajustados à mão onde os ambientes se sobrepõem. */
-const FLOORS = [
-  { id: 'terreo', label: 'Térreo', rooms: [
-    { id:'terreo',     label:'Térreo inteiro',             file:'modelos/terreo-completo.glb',        mb:7.9, all:true, box:[-3.0,-38.4,74.0,2.0] },
-    { id:'escritorio', label:'Escritório · Lavabo · Hall', file:'modelos/escritorio-lavabo-hall.glb', mb:1.6, box:[-3.0,-16.6,17.0,2.0],  kp:'Escrit. / Hall' },
-    { id:'garagem',    label:'Garagem',                    file:'modelos/garagem.glb',                mb:1.0, box:[-3.0,-38.4,17.4,-15.9], kp:'Garagem' },
-    { id:'estar',      label:'Estar · Lounge',             file:'modelos/estar-lounge.glb',           mb:1.8, box:[16.3,-32.0,33.5,-2.0], kp:'Estar' },
-    { id:'jantar',     label:'Jantar · Cozinha',           file:'modelos/jantar-cozinha.glb',         mb:2.4, box:[31.7,-34.6,51.5,-3.0], kp:'Jantar / Coz.' },
-    { id:'gourmet',    label:'Gourmet · Serviço · I.S. · Brinquedoteca', file:'modelos/gourmet-servico-lazer.glb', mb:2.9, box:[49.6,-34.6,74.0,-3.0], kp:'Gourmet / Serv.' },
-  ]},
-  { id: 'pav1', label: 'Pavimento Superior', rooms: [
-    { id:'pav1',       label:'Pavimento Superior inteiro', file:'modelos/pavimento-superior.glb',     mb:8.3, all:true, box:[-0.1,-31.3,70.9,0.1] },
-    { id:'master',     label:'Suíte e Closet Master',      file:'modelos/suite-closet-master.glb',    mb:1.8, box:[-0.1,-25.5,17.2,0.1],  kp:'Master' },
-    { id:'davi',       label:'Suíte Davi',                 file:'modelos/suite-davi.glb',             mb:1.6, box:[17.2,-21.7,32.3,-6.7], kp:'Davi' },
-    { id:'bela',       label:'Suíte Bela',                 file:'modelos/suite-bela.glb',             mb:1.5, box:[32.3,-21.7,48.3,-7.0], kp:'Bela' },
-    { id:'sara',       label:'Suíte Sara · Cinema',        file:'modelos/suite-sara-cinema.glb',      mb:3.1, box:[48.3,-31.3,70.9,-7.0], kp:'Sara / Cinema' },
-    { id:'circulacao', label:'BHO Master · Circulação · Rouparia · Escada', file:'modelos/bho-circulacao-escada.glb', mb:2.9, box:[17.2,-31.3,48.3,-21.7], kp:'Circ. / Escada' },
-  ]},
+/* ================= Dados da obra ================= */
+const OBRA = 'amaggi';
+const MODELO = 'modelos/paineis-pv1.glb';
+const ST = [
+  { n:'Não iniciado', c:'#b8c1cc' },
+  { n:'Montado',      c:'#93c6ee' },
+  { n:'Levantado',    c:'#4b8fdb' },
+  { n:'Prumo ok',     c:'#2257a8' },
+  { n:'Esquadro ok',  c:'#22a05a' },
+  { n:'Com problema', c:'#e04646' },
 ];
-/* Campos do balão do ponto. Para mostrar outro parâmetro do Revit para todos,
-   copie uma linha e troque "param" pelo nome exato que aparece em "Todas as
-   propriedades" no app (maiúsculas e acentos não importam). formato:
-   'distancia' mostra 0,40 como 40 cm. Campo vazio no Revit não aparece.
-   Cada pessoa também pode fixar mais campos no próprio aparelho, tocando na
-   estrela em "Todas as propriedades". */
-/* Convenção da obra: Marca = tipo do ponto (tomada, luminária);
-   Comentários = distância (ao ponto ao lado, à parede). A situação é a etapa
-   marcada no celular. */
-const CAMPOS = [
-  { rotulo: 'Cota em projeto', param: 'Cota em Projeto' },
-  { rotulo: 'Cota in loco',    param: 'Cota in loco' },
+// Peças do projeto (uma prancha por peça em pranchas/). Só o PV1 tem 3D por enquanto.
+const GRUPOS = [
+  { id:'PV1', nome:'Painéis PV1', n:100 },
+  { id:'PV2', nome:'Painéis PV2', n:58 },
+  { id:'TR',  nome:'Treliças',    n:12 },
+  { id:'TS',  nome:'Tesouras',    n:3 },
+  { id:'LJ1', nome:'Laje',        n:1 },
 ];
-FLOORS.forEach((f) => f.rooms.forEach((r) => { r.floor = f; }));
-const ALL_ROOMS = FLOORS.flatMap((f) => f.rooms);
-let ROOMS = FLOORS[0].rooms;
-const fmtMB = (v) => v.toFixed(1).replace('.', ',') + ' MB';
-const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, '0');
+const PECAS = [];
+GRUPOS.forEach((g) => { for (let i = 1; i <= g.n; i++) PECAS.push({ code: `${g.id}-${pad(i)}`, grupo: g.id, num: i }); });
+const PECA = Object.fromEntries(PECAS.map((p) => [p.code, p]));
+const prancha = (code) => `pranchas/${code}.pdf`;
+// "PV1 - 23" / "PV1-23" / "pv1 23" -> "PV1-23"
+function normCode(s){
+  const m = String(s || '').toUpperCase().match(/(PV1|PV2|TR|TS|LJ1)\s*[-_ ]?\s*0*(\d+)/);
+  return m ? `${m[1]}-${pad(+m[2])}` : null;
+}
 
-/* ---------------- Renderer / cena ---------------- */
-const holder = $('canvas-holder');
+/* ================= Estado (servidor + fila deste aparelho) ================= */
+const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx' };
+const ls = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let servidor = ls.get(LS.cache, {});      // code -> {etapa, autor, em, nota}
+let fila = ls.get(LS.fila, []);           // marcações ainda não enviadas
+let nome = ls.get(LS.nome, '');
+let syncState = 'wait', syncMsg = 'Conectando…', ultimoSync = null;
+
+function estado(code){
+  let s = servidor[code] || null;
+  for (const m of fila) if (m.elemento === code && (!s || m.em >= (s.em || ''))) s = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, pend: true };
+  return s;
+}
+const etapa = (code) => (estado(code)?.etapa ?? 0);
+
+async function puxar(){
+  try {
+    const r = await fetch(`/api/etapas?obra=${OBRA}`, { cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erro || `HTTP ${r.status}`);
+    servidor = {};
+    Object.entries(j.pontos || {}).forEach(([k, v]) => { servidor[k] = { etapa: v.etapa, autor: v.autor, em: new Date(v.em).toISOString(), nota: v.nota || '' }; });
+    ls.set(LS.cache, servidor);
+    ultimoSync = new Date();
+    if (!fila.length) setSync('on', 'Sincronizado');
+    return true;
+  } catch (e) {
+    setSync('off', navigator.onLine ? `Servidor indisponível (${e.message}). As marcações ficam salvas neste aparelho.` : 'Sem internet. As marcações ficam salvas neste aparelho.');
+    return false;
+  }
+}
+let enviando = false;
+async function enviar(){
+  if (enviando || !fila.length) return;
+  enviando = true;
+  const lote = fila.slice(0, 200);
+  setSync('wait', `Enviando ${lote.length} marcação(ões)…`);
+  try {
+    const r = await fetch('/api/etapas', { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ obra: OBRA, marcacoes: lote }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erro || `HTTP ${r.status}`);
+    lote.forEach((m) => { const s = servidor[m.elemento]; if (!s || m.em >= s.em) servidor[m.elemento] = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota }; });
+    fila = fila.slice(lote.length); ls.set(LS.fila, fila); ls.set(LS.cache, servidor);
+    enviando = false;
+    if (fila.length) return enviar();
+    await puxar(); refresh();
+  } catch (e) {
+    enviando = false;
+    setSync('off', `${fila.length} marcação(ões) aguardando envio — ${navigator.onLine ? 'servidor indisponível (' + e.message + ')' : 'sem internet'}. Ficam salvas neste aparelho.`);
+  }
+}
+function setSync(s, msg){
+  syncState = s; syncMsg = msg;
+  const d = document.getElementById('sync-dot'); d.className = 'dot ' + s;
+  const pend = fila.length ? ` · ${fila.length} na fila` : '';
+  document.getElementById('who').title = msg;
+  document.getElementById('sync-info').textContent = msg + (ultimoSync && s === 'on' ? ` às ${hora(ultimoSync)}` : '') + (s === 'on' ? pend : '');
+}
+const hora = (d) => d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+function quando(iso){
+  if (!iso) return '';
+  const d = new Date(iso), hoje = new Date();
+  const mesmoDia = d.toDateString() === hoje.toDateString();
+  return mesmoDia ? `hoje ${hora(d)}` : `${d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' })} ${hora(d)}`;
+}
+
+function marcar(code, et, nota){
+  if (!nome) { pedirNome(() => marcar(code, et, nota)); return; }
+  const m = { elemento: code, etapa: et, autor: nome, ambiente: PECA[code]?.grupo || '', em: new Date().toISOString(), nota: nota || '' };
+  fila.push(m); ls.set(LS.fila, fila);
+  refresh();
+  toast(`${code}: ${ST[et].n}`);
+  enviar();
+}
+
+/* ================= Nome ================= */
+let depoisNome = null;
+function pedirNome(cb){
+  depoisNome = cb || null;
+  const dlg = document.getElementById('namedlg'); dlg.hidden = false;
+  const inp = document.getElementById('name-in'); inp.value = nome; setTimeout(() => inp.focus(), 30);
+}
+document.getElementById('nameform').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = document.getElementById('name-in').value.trim(); if (!v) return;
+  nome = v; ls.set(LS.nome, nome); document.getElementById('namedlg').hidden = true;
+  document.getElementById('who-name').textContent = nome;
+  const cb = depoisNome; depoisNome = null; cb && cb();
+});
+document.getElementById('name-cancel').onclick = () => { document.getElementById('namedlg').hidden = true; depoisNome = null; };
+document.getElementById('who').onclick = () => pedirNome();
+if (nome) document.getElementById('who-name').textContent = nome;
+
+/* ================= 3D ================= */
+const view = document.getElementById('view');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-holder.appendChild(renderer.domElement);
-const labelRenderer = new CSS2DRenderer({ element: $('label-layer') });
+view.appendChild(renderer.domElement);
+const labelR = new CSS2DRenderer({ element: document.getElementById('labels') });
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf4f6f8);
-const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 5000);
+scene.background = new THREE.Color('#f4f6f8');
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.08;
-controls.minDistance = 0.01; controls.maxDistance = 800; controls.zoomSpeed = 2.5;
+controls.enableDamping = true; controls.dampingFactor = 0.12; controls.screenSpacePanning = true;
+controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb9c3cf, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(30, 60, 20); scene.add(sun);
+const sun2 = new THREE.DirectionalLight(0xffffff, 0.5); sun2.position.set(-30, 25, -40); scene.add(sun2);
 
-scene.add(new THREE.HemisphereLight(0xdfe9f5, 0x0a1524, 1.1));
-const d1 = new THREE.DirectionalLight(0xffffff, 1.4); d1.position.set(12, 18, 8); scene.add(d1);
-const d2 = new THREE.DirectionalLight(0x6f9fd8, 0.5); d2.position.set(-14, 6, -10); scene.add(d2);
-const grid = new THREE.GridHelper(200, 80, 0x9aa7b3, 0xd3d9de);
-grid.material.transparent = true; grid.material.opacity = 0.55; scene.add(grid);
+// O GLB do Revit (e-verse) vem sem normais: flatShading calcula a luz por face no shader.
+const matSt = ST.map((s) => new THREE.MeshStandardMaterial({ color: s.c, roughness: .65, metalness: .05, side: THREE.DoubleSide, flatShading: true }));
+const matSel = ST.map((s) => new THREE.MeshStandardMaterial({ color: s.c, roughness: .5, metalness: .05, emissive: new THREE.Color('#ff9a1f'), emissiveIntensity: .55, side: THREE.DoubleSide, flatShading: true }));
+const matDim = new THREE.MeshStandardMaterial({ color: '#c9d1da', transparent: true, opacity: .14, depthWrite: false, side: THREE.DoubleSide, flatShading: true });
+const matCtx = new THREE.MeshStandardMaterial({ color: '#d6dbe1', transparent: true, opacity: .32, depthWrite: false, side: THREE.DoubleSide, flatShading: true });
 
-const modelGroup = new THREE.Group();   // modelo do ambiente
-const overlayGroup = new THREE.Group(); // contornos, etiquetas, medição
-scene.add(modelGroup, overlayGroup);
+const paineis = new Map();   // code -> {obj, meshes[], box, center, tag}
+const ctxObjs = [];
+let alvoPick = [];
+let sel = null, filtro = null;
+let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true);
+let modelBox = new THREE.Box3();
 
 function resize(){
-  const w = holder.clientWidth, h = holder.clientHeight;
-  renderer.setSize(w, h, false);
-  labelRenderer.setSize(w, h);
-  camera.aspect = w / Math.max(h, 1);
-  camera.updateProjectionMatrix();
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); labelR.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
 }
-window.addEventListener('resize', resize); resize();
+new ResizeObserver(resize).observe(view); resize();
 
-/* Etiquetas: com muitas tomadas na tela (pavimento inteiro), só mostra as
-   que estão perto da câmera para não virar uma nuvem de texto. */
-const tmpV = new THREE.Vector3();
-function updateTagVisibility(){
-  if (!tagsOn || measureOn) return;
-  const crowded = tomadaClusters.length > 60;
-  const limit = Math.max(6, fitSphere.radius * 0.45);
-  tomadaClusters.forEach((c) => {
-    if (!c.tag) return;
-    let show = c.visible;
-    if (show && crowded) show = camera.position.distanceTo(tmpV.copy(c.center).applyMatrix4(modelGroup.matrixWorld)) < limit;
-    c.tag.visible = show;
+const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+loader.load(MODELO, (gltf) => {
+  const root = gltf.scene; scene.add(root); root.updateMatrixWorld(true);
+  // Cada nó filho do rootNode é um elemento do Revit; Marca = nome do painel.
+  const top = root.children[0]?.children?.length ? root.children[0].children : root.children;
+  top.forEach((o) => {
+    const p = o.userData?.parameters || {};
+    const code = normCode(p['Marca'] || p['Type NameOverride'] || o.name);
+    const meshes = []; o.traverse((m) => { if (m.isMesh) meshes.push(m); });
+    if (code && PECA[code]) {
+      const box = new THREE.Box3().setFromObject(o);
+      const info = { code, obj: o, meshes, box, center: box.getCenter(new THREE.Vector3()), vol: p['Volume'] || '' };
+      meshes.forEach((m) => { m.userData.code = code; });
+      const el = document.createElement('div'); el.className = 'tag'; el.textContent = code.replace(/^PV1-/, '');
+      el.addEventListener('click', (e) => { e.stopPropagation(); selecionar(code, false); });
+      const tag = new CSS2DObject(el); tag.position.set(info.center.x, box.max.y + 0.12, info.center.z); scene.add(tag);
+      info.tag = tag; info.el = el;
+      paineis.set(code, info); modelBox.union(box); alvoPick.push(...meshes);
+    } else {
+      meshes.forEach((m) => { m.material = matCtx; m.renderOrder = 2; }); ctxObjs.push(o);
+    }
   });
-}
-
-/* ---------------- Categorias e status ---------------- */
-const CATEGORY_STYLE = {
-  estrutura: { color: 0x9aa4b2, metalness: 0.85, roughness: 0.28, opacity: 0.3, label: 'Estrutura LSF' },
-  conduite:  { color: 0xffd400, metalness: 0.05, roughness: 0.4, opacity: 1, label: 'Conduítes' },
-  tomada:    { color: 0xf2efe8, metalness: 0.05, roughness: 0.35, opacity: 1, label: 'Pontos' },
-  suporte:   { color: 0x5b8ac9, metalness: 0.5, roughness: 0.45, opacity: 1, label: 'Suportes' },
-};
-const CATEGORY_ORDER = ['estrutura', 'conduite', 'tomada', 'suporte'];
-const mats = {};
-function materialFor(cat){
-  if (!mats[cat]) {
-    const s = CATEGORY_STYLE[cat];
-    mats[cat] = new THREE.MeshStandardMaterial({ color: s.color, metalness: s.metalness, roughness: s.roughness, transparent: s.opacity < 1, opacity: s.opacity });
-  }
-  return mats[cat];
-}
-/* Tomadas pintadas pela situação (propriedade Marca no Revit). */
-const STATUS = {
-  'nao-conforme': { label: 'Não conforme', color: 0xff5a5a, order: 0 },
-  'pendente':     { label: 'Pendente',     color: 0xffb020, order: 1 },
-  'none':         { label: 'Sem status',   color: 0xf2efe8, order: 2 },
-  'executado':    { label: 'Executado',    color: 0x2ecc71, order: 3 },
-};
-const statusMats = {};
-function statusMaterial(key){
-  if (!statusMats[key]) statusMats[key] = new THREE.MeshStandardMaterial({ color: STATUS[key].color, metalness: 0.05, roughness: 0.4 });
-  return statusMats[key];
-}
-/* Etapas de execução: marcadas no celular e salvas no banco (api/etapas.js).
-   Cada etapa inclui as anteriores: um ponto "Acabamento" já passou por infra e
-   enfiação. O ponto é identificado pelo ID do elemento no Revit. */
-const OBRA = 'l14q13';
-const ETAPAS = [
-  { label: 'Não iniciado', curto: 'Não iniciado', color: 0xf2efe8 },
-  { label: 'Infra (caixa e eletroduto)', curto: 'Infra', color: 0xffb020 },
-  { label: 'Enfiação', curto: 'Enfiação', color: 0x3b8fe0 },
-  { label: 'Acabamento', curto: 'Acabamento', color: 0x9b6fe0 },
-  { label: 'Testado', curto: 'Testado', color: 0x2ecc71 },
-];
-const etapaMats = {};
-function etapaMaterial(k){
-  if (!etapaMats[k]) etapaMats[k] = new THREE.MeshStandardMaterial({ color: ETAPAS[k].color, metalness: 0.05, roughness: 0.4 });
-  return etapaMats[k];
-}
-const store = {
-  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-};
-function categorize(p){
-  const n = p.toLowerCase();
-  if (/perfil.*lsf/.test(n)) return 'suporte';
-  if (/conduite|eletroduto|caixa/.test(n)) return 'conduite';
-  if (/tomada|interruptor|dispositivos de (ilumina|comunica|telefonia)/.test(n)) return 'tomada';
-  return 'estrutura';
-}
-
-/* ---------------- Estado ---------------- */
-let current = null;
-let meshIndex = [], allMeshes = [], tomadaClusters = [], outlines = [];
-let fitSphere = new THREE.Sphere(new THREE.Vector3(), 5);
-let activeCats = new Set();
-let statusFilter = 'all';
-let etapaFilter = 'all';
-let colorMode = 'etapa';   // situação = etapa marcada no celular
-let etapaServer = {};                          // elemento -> { etapa, autor, em }
-let fila = store.get('campo3d-fila', []);      // marcações ainda não enviadas
-let syncState = 'wait', syncBusy = false;
-let bulkPending = null;
-let selectedCluster = null;
-let tagsOn = store.get('campo3d-tags', false);   // etiquetas só se a pessoa ligar
-const cache = new Map();       // id -> root já montado (troca instantânea ao voltar)
-const downloaded = new Set();  // arquivos já baixados (cache offline)
-const loader = new GLTFLoader();
-loader.setMeshoptDecoder(MeshoptDecoder);
-
-const roomsEl = $('rooms'), titleEl = $('room-title');
-const loadingEl = $('loading'), pctEl = $('load-pct'), barEl = $('load-bar'), errEl = $('load-error'), loadLabel = $('load-label');
-const selBar = $('sel-bar'), selMeasures = $('sel-measures'), selTitle = $('sel-title');
-const panel = $('panel'), searchInput = $('search'), listEl = $('t-list');
-
-function frameToSphere(sphere, top){
-  const r = Math.max(sphere.radius, 0.5);
-  const dir = top ? new THREE.Vector3(0, 1, 0.0001) : new THREE.Vector3(0.85, 0.65, 1).normalize();
-  const dist = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * (top ? 1.0 : 1.15);
-  camera.position.copy(sphere.center).add(dir.multiplyScalar(dist));
-  camera.near = Math.max(r / 400, 0.005); camera.far = Math.max(r * 40, 100);
-  camera.updateProjectionMatrix();
-  controls.target.copy(sphere.center); controls.update();
-}
-function worldBox(box){ return box.clone().applyMatrix4(modelGroup.matrixWorld); }
-
-/* ---------------- Pavimentos / abas ---------------- */
-const lastRoomByFloor = {};
-function renderFloors(){
-  const el = $('floor-switch');
-  el.innerHTML = '';
-  FLOORS.forEach((f) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'floor-btn' + (current && current.floor === f ? ' active' : '');
-    b.textContent = f.label;
-    b.addEventListener('click', () => {
-      if (current && current.floor === f) return;
-      selectRoom(lastRoomByFloor[f.id] || f.rooms.find((r) => r.id === 'garagem') || f.rooms.find((r) => !r.all) || f.rooms[0]);
-    });
-    el.appendChild(b);
-  });
-}
-function renderRooms(){
-  roomsEl.innerHTML = '';
-  roomsEl.hidden = ROOMS.length < 2;
-  ROOMS.forEach((r) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'room-btn' + (r.all ? ' all' : '') + (current && current.id === r.id ? ' active' : '');
-    b.innerHTML = '<span class="rn"></span><span class="rm"></span>';
-    b.querySelector('.rn').textContent = r.label;
-    const rm = b.querySelector('.rm');
-    if (downloaded.has(r.file)) { const d = document.createElement('span'); d.className = 'off'; d.title = 'Já baixado: abre sem internet'; rm.appendChild(d); }
-    rm.appendChild(document.createTextNode(fmtMB(r.mb)));
-    b.addEventListener('click', () => selectRoom(r));
-    roomsEl.appendChild(b);
-  });
-  const act = roomsEl.querySelector('.active');
-  if (act) act.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-}
-
-/* ---------------- Planta-chave ---------------- */
-const NS = 'http://www.w3.org/2000/svg';
-function renderKeyplan(){
-  const svg = $('kp-svg');
-  const whole = ROOMS.find((r) => r.all && r.box);
-  $('keyplan').hidden = ROOMS.length < 2 || !whole;
-  if ($('keyplan').hidden) return;
-  const all = whole.box, pad = 1.5;
-  svg.setAttribute('viewBox', (all[0]-pad) + ' ' + (-all[3]-pad) + ' ' + (all[2]-all[0]+2*pad) + ' ' + (all[3]-all[1]+2*pad));
-  svg.innerHTML = '';
-  const o = document.createElementNS(NS, 'rect');
-  o.setAttribute('class', 'outline');
-  o.setAttribute('x', all[0]); o.setAttribute('y', -all[3]); o.setAttribute('width', all[2]-all[0]); o.setAttribute('height', all[3]-all[1]);
-  svg.appendChild(o);
-  ROOMS.filter((r) => !r.all && r.box).forEach((r) => {
-    const [x0, y0, x1, y1] = r.box;
-    const rect = document.createElementNS(NS, 'rect');
-    rect.setAttribute('class', 'room' + (current && current.id === r.id ? ' active' : ''));
-    rect.setAttribute('x', x0 + .3); rect.setAttribute('y', -y1 + .3);
-    rect.setAttribute('width', x1 - x0 - .6); rect.setAttribute('height', y1 - y0 - .6);
-    rect.setAttribute('rx', .8);
-    rect.addEventListener('click', () => selectRoom(r));
-    const t = document.createElementNS(NS, 'title'); t.textContent = r.label; rect.appendChild(t);
-    svg.appendChild(rect);
-    const tx = document.createElementNS(NS, 'text');
-    tx.setAttribute('x', (x0 + x1) / 2); tx.setAttribute('y', -(y0 + y1) / 2 + 1);
-    tx.setAttribute('text-anchor', 'middle');
-    tx.textContent = r.kp;
-    svg.appendChild(tx);
-  });
-}
-$('kp-head').addEventListener('click', () => {
-  const kp = $('keyplan');
-  kp.classList.toggle('min');
-  $('kp-caret').textContent = kp.classList.contains('min') ? '+' : '−';
+  if (modelBox.isEmpty()) modelBox.setFromObject(root);
+  enquadrar(false, true);
+  aplicarVis(); refresh();
+  const L = document.getElementById('loading'); L.classList.add('hide'); setTimeout(() => (L.hidden = true), 350);
+}, (ev) => {
+  if (ev.total) { const p = Math.round(ev.loaded / ev.total * 100); document.getElementById('load-pct').textContent = p + '%'; document.getElementById('load-bar').style.width = p + '%'; }
+}, (err) => {
+  console.error(err);
+  document.getElementById('load-lbl').textContent = 'Não foi possível abrir o 3D';
+  const e = document.getElementById('load-err'); e.hidden = false;
+  e.textContent = 'Verifique a internet e recarregue a página. A lista de peças e as pranchas continuam disponíveis pela lupa.';
+  setTimeout(() => { document.getElementById('loading').hidden = true; }, 2500);
 });
 
-/* ---------------- Leitura das propriedades do Revit ---------------- */
-function parseRevitNumber(raw){ return parseFloat(String(raw).trim().replace(/\./g, '').replace(',', '.')); }
-function fmtDist(v){ if (!isFinite(v)) return '—'; return Math.abs(v) < 3 ? Math.round(v * 100) + ' cm' : v.toFixed(2).replace('.', ',') + ' m'; }
-function normalizeStatus(raw){
-  const s = (raw || '').trim().toLowerCase();
-  if (!s) return null;
-  if (/execut/.test(s)) return 'executado';
-  if (/pendent/.test(s)) return 'pendente';
-  if (/n[aã]o\s*conforme|reprov/.test(s)) return 'nao-conforme';
-  return null;
-}
-function paramsOf(mesh){
-  const ud = mesh.userData || {};
-  return (ud.parameters && typeof ud.parameters === 'object') ? ud.parameters : ud;
-}
-/* Um ponto de tomada = conjunto (tem Elevação, Dimensões e a Marca de status)
-   + módulos internos (Marca = numeração automática do Revit, ignorada). */
-function describeCluster(c){
-  let altura = '', alturaNum = NaN, comentario = '', status = null, dims = '', faixa = '', carga = '', id = '';
-  c.entries.forEach((e) => {
-    const p = paramsOf(e.mesh);
-    Object.keys(p).forEach((k) => {
-      const val = p[k];
-      if (val === undefined || val === null || val === '') return;
-      const key = k.toLowerCase();
-      if (key === 'type dimensões' && val !== 'Não Listar' && !dims) dims = String(val);
-      if (/^type[\s_]/i.test(k)) return;
-      if (!altura && /altura|height|eleva[cç][aã]o do ponto|eleva[cç][aã]o$/.test(key)) { alturaNum = parseRevitNumber(val); altura = isFinite(alturaNum) ? fmtDist(alturaNum) : String(val); }
-      if (!comentario && /coment|comment/.test(key)) comentario = String(val);
-      if (!status && /^(marca|mark)$/.test(key)) status = normalizeStatus(String(val));
-      if (!carga && /tipo d[ae] carga/.test(key)) carga = String(val).replace(/\s*\(.*\)/, '');
-    });
-    if (!faixa) faixa = ['Alta', 'Média', 'Baixa'].find((f) => p[f] === 'Sim') || '';
-    const d = p['Type Dimensões'];
-    if (!id && d && d !== 'Não Listar' && e.mesh.userData && e.mesh.userData.elementId) id = String(e.mesh.userData.elementId);
-  });
-  if (!id) { const w = c.entries.find((e) => e.mesh.userData && e.mesh.userData.elementId); if (w) id = String(w.mesh.userData.elementId); }
-  const st = status || 'none';
-  const sub = [dims, faixa && ('altura ' + faixa.toLowerCase()), carga].filter(Boolean).join(' · ');
-  c.info = { altura, alturaNum, comentario, status: st, dims, faixa, carga, id, sub,
-    name: id ? 'Ponto #' + id : 'Ponto',
-    search: [id, altura, comentario, STATUS[st].label, dims, faixa, carga].join(' ').toLowerCase() };
-  /* Propriedades de cada elemento do ponto (conjunto, módulos, caixa), o
-     conjunto principal primeiro. Base do balão e de "Todas as propriedades". */
-  const byEl = new Map();
-  c.entries.forEach((e) => {
-    const ud = e.mesh.userData || {};
-    const key = ud.elementId ? String(ud.elementId) : e.mesh.uuid;
-    if (!byEl.has(key)) byEl.set(key, { el: ud.elementId ? String(ud.elementId) : '', cat: ud.elementCategory || '', nome: e.name || '', params: paramsOf(e.mesh) });
-  });
-  c.props = [...byEl.values()].sort((a, b) => (b.el === id) - (a.el === id));
-  c.info.marca = valorParam(c, 'Marca').replace(/''/g, '"');
-  c.info.search += ' ' + [c.info.marca, ...camposDe(c).map((f) => f.valor)].join(' ').toLowerCase();
+function aplicarVis(){
+  ctxObjs.forEach((o) => (o.visible = ctxOn));
+  document.getElementById('b-ctx').classList.toggle('on', ctxOn);
+  document.getElementById('b-tags').classList.toggle('on', tagsOn);
+  declutter();
 }
 
-/* ---------------- Campos configuráveis ---------------- */
-const RUIDO = /^(ifc|exportar|fase |recobrimento|type (tipo ifcguid|número omniclass|título omniclass|exportar|família|e-mail|url))/i;
-const norm = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-function valorParam(c, nome){
-  const alvo = norm(nome);
-  for (const pr of c.props || []) {
-    for (const k of Object.keys(pr.params)) {
-      if (norm(k) !== alvo) continue;
-      const v = pr.params[k];
-      if (v === undefined || v === null || v === '' || v === 'Não Listar') continue;
-      if (alvo === 'marca' && (/^\d+$/.test(String(v)) || normalizeStatus(String(v)))) continue; // numeração dos módulos e status antigos
-      return String(v);
-    }
-  }
-  return '';
-}
-function formatar(v, formato){
-  if (formato === 'distancia') { const n = parseRevitNumber(v); return isFinite(n) ? fmtDist(n) : v; }
-  return v;
-}
-let favoritos = store.get('campo3d-campos', []);   // campos fixados neste aparelho
-function camposDe(c){
-  const lista = [...CAMPOS, ...favoritos.filter((f) => !CAMPOS.some((x) => norm(x.param) === norm(f))).map((f) => ({ rotulo: f.replace(/^Type /, ''), param: f, fav: true }))];
-  return lista.map((f) => ({ ...f, valor: formatar(valorParam(c, f.param), f.formato) })).filter((f) => f.valor);
-}
-
-/* ---------------- Índice do modelo ---------------- */
-function buildIndex(root){
-  meshIndex = []; allMeshes = [];
-  root.traverse((obj) => {
-    if (!obj.isMesh) return;
-    if (!obj.geometry.attributes.normal) obj.geometry.computeVertexNormals();
-    const path = [];
-    let p = obj;
-    while (p && p !== root) { if (p.name) path.unshift(p.name); p = p.parent; }
-    const cat = categorize(path.join(' / ') || obj.name || '');
-    obj.material = materialFor(cat);
-    allMeshes.push(obj);
-    meshIndex.push({ mesh: obj, name: obj.name || '', cat });
-  });
-  root.updateMatrixWorld(true);
-  meshIndex.forEach((e) => { e.box = new THREE.Box3().setFromObject(e.mesh); e.center = e.box.getCenter(new THREE.Vector3()); e.pointGroup = null; });
-  tomadaClusters = [];
-  meshIndex.filter((e) => e.cat === 'tomada').forEach((e) => {
-    let c = tomadaClusters.find((c) => Math.hypot(c.x - e.center.x, c.z - e.center.z) < 0.12);
-    if (!c) { c = { entries: [], box: new THREE.Box3(), x: e.center.x, z: e.center.z, visible: true }; tomadaClusters.push(c); }
-    c.entries.push(e); c.box.union(e.box);
-  });
-  tomadaClusters.forEach((c) => {
-    c.center = c.box.getCenter(new THREE.Vector3());
-    c.entries.forEach((e) => { e.pointGroup = c; });
-    describeCluster(c);
-    c.et = etapaDe(c.info.id);
-    paintCluster(c);
-  });
-  /* A caixa 4x2 do ponto (conduíte) abre o mesmo balão do ponto. */
-  meshIndex.forEach((e) => {
-    if (e.pointGroup || !/caixa/i.test(e.name || '')) return;
-    let best = null, bd = 0.2;
-    tomadaClusters.forEach((c) => { const d = c.center.distanceTo(e.center); if (d < bd) { bd = d; best = c; } });
-    if (best) e.pointGroup = best;
-  });
-  tomadaClusters.sort((a, b) => STATUS[a.info.status].order - STATUS[b.info.status].order || (a.info.alturaNum || 0) - (b.info.alturaNum || 0));
-}
-function paintCluster(c){
-  const m = colorMode === 'etapa' ? etapaMaterial(c.et.etapa) : statusMaterial(c.info.status);
-  c.entries.forEach((e) => { e.mesh.material = m; });
-  if (c.tagEl) { c.tagEl.className = 'tag ' + (colorMode === 'etapa' ? 'et-' + c.et.etapa : 'st-' + c.info.status) + (c === selectedCluster ? ' hit' : ''); textoEtiqueta(c); }
-}
-
-/* ---------------- Conteúdo da etiqueta 3D ----------------
-   Cada pessoa escolhe no menu das etiquetas o que aparece; fica salvo no aparelho. */
-const ETIQ = [
-  ['tipo', 'Tipo (Marca)'], ['altura', 'Altura'], ['distancia', 'Distância (Comentários)'],
-  ['etapa', 'Etapa (infra, enfiação…)'], ['vizinho', 'Ponto vizinho (calculado)'], ['parede', 'Parede (estimada no modelo)'],
-];
-let tagFields = store.get('campo3d-etiqueta', ['tipo', 'altura', 'distancia', 'etapa']);
-function textoEtiqueta(c){
-  const el = c.tagEl; if (!el) return;
-  const esc = (t) => String(t).replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
-  const l1 = [], l2 = [];
-  if (tagFields.includes('altura')) l1.push(c.info.altura || '?');
-  if (tagFields.includes('tipo')) { const t = valorParam(c, 'Marca') || c.info.dims; if (t) l1.unshift(t.replace(/''/g, '"')); }
-  if (tagFields.includes('distancia')) { const d = valorParam(c, 'Comentários'); if (d) l2.push(d); }
-  if (tagFields.includes('vizinho') || tagFields.includes('parede')) {
-    /* calculados pelo app */
-    const pos = posDe(c, tagFields.includes('parede'));
-    if (tagFields.includes('vizinho') && pos.viz != null) l2.push('viz ' + fmtDist(pos.viz));
-    if (tagFields.includes('parede')) l2.push('par ' + (pos.parede == null ? '…' : isFinite(pos.parede) ? (pos.revit ? '' : '~') + fmtDist(pos.parede) : '—'));
-  }
-  let html = '<span class="tl">' + esc(l1.join(' · ') || c.info.name) + '</span>';
-  if (l2.length) html += '<span class="tl">' + esc(l2.join(' · ')) + '</span>';
-  if (tagFields.includes('etapa')) html += '<span class="tl tet et-' + c.et.etapa + '"><i></i>' + esc(ETAPAS[c.et.etapa].curto) + '</span>';
-  el.innerHTML = html;
-}
-/* Posição calculada uma vez por ponto; a parede (raios no modelo) é calculada
-   aos poucos, em segundo plano, para não travar o celular no pavimento inteiro. */
-let filaParede = [];
-function posDe(c, querParede){
-  if (!c.pos) {
-    let dv = Infinity, viz = null;
-    tomadaClusters.forEach((o) => { if (o === c) return; const d = Math.hypot(o.center.x - c.center.x, o.center.z - c.center.z); if (d < dv) { dv = d; viz = o; } });
-    c.pos = { viz: viz ? dv : null, vizC: viz, paredes: undefined, parede: null };
-  }
-  if (querParede && c.pos.paredes === undefined && !filaParede.includes(c)) { filaParede.push(c); agendarParedes(); }
-  return c.pos;
-}
-/* Se o ponto tiver no Revit o parâmetro "Distância parede" (preenchido à mão
-   ou por Dynamo), vale ele; senão o app estima pelo modelo (marcado com ~). */
-function calcParede(c){
-  const rv = parseRevitNumber(valorParam(c, 'Distância parede'));
-  if (isFinite(rv)) { c.pos.paredes = [rv]; c.pos.parede = rv; c.pos.revit = true; return; }
-  const par = distParedes(c);
-  c.pos.paredes = par;
-  c.pos.parede = par ? Math.min(...par) : Infinity;
-  c.pos.revit = false;
-}
-let paredeTimer = null;
-function agendarParedes(){
-  if (paredeTimer) return;
-  paredeTimer = setTimeout(function passo(){
-    const t0 = performance.now();
-    while (filaParede.length && performance.now() - t0 < 12) { const c = filaParede.shift(); if (tomadaClusters.includes(c)) { calcParede(c); textoEtiqueta(c); } }
-    paredeTimer = filaParede.length ? setTimeout(passo, 16) : null;
-  }, 50);
-}
-function renderTagMenu(){
-  $('tag-on').checked = tagsOn;
-  const el = $('tag-fields'); el.innerHTML = '';
-  ETIQ.forEach(([k, label]) => {
-    const l = document.createElement('label');
-    const i = document.createElement('input'); i.type = 'checkbox'; i.checked = tagFields.includes(k);
-    i.addEventListener('change', () => {
-      tagFields = i.checked ? [...tagFields, k] : tagFields.filter((f) => f !== k);
-      store.set('campo3d-etiqueta', tagFields);
-      if (!tagsOn && i.checked) { tagsOn = true; $('tag-on').checked = true; applyTagState(); }
-      tomadaClusters.forEach(textoEtiqueta);
-    });
-    l.append(i, document.createTextNode(label)); el.appendChild(l);
+function pintar(){
+  paineis.forEach((p) => {
+    const e = etapa(p.code);
+    const fora = filtro != null && e !== filtro;
+    const m = fora ? matDim : (sel === p.code ? matSel[e] : matSt[e]);
+    p.meshes.forEach((x) => { x.material = m; x.renderOrder = fora ? 1 : 0; });
+    p.el.style.setProperty('--c', ST[e].c);
+    p.el.classList.toggle('sel', sel === p.code);
+    p.el.classList.toggle('dim', fora && sel !== p.code);
   });
 }
 
-/* ---------------- Etapas: estado, fila offline e sincronização ---------------- */
-function etapaDe(id){
-  const vazio = { etapa: 0, autor: '', em: '', local: false };
-  if (!id) return vazio;
-  for (let i = fila.length - 1; i >= 0; i--) if (fila[i].elemento === id) return { etapa: fila[i].etapa, autor: fila[i].autor, em: fila[i].em, local: true };
-  const s = etapaServer[id];
-  return s ? { etapa: s.etapa, autor: s.autor || '', em: s.em || '', local: false } : vazio;
-}
-function refreshEtapas(){
-  tomadaClusters.forEach((c) => { c.et = etapaDe(c.info.id); paintCluster(c); });
-  renderTomadaProgress(); renderEtapaFilter(); renderBulk();
-  applyFilters(false);
-  if (selectedCluster) renderSelEtapa(selectedCluster);
-}
-function marcar(clusters, etapa){
-  const autor = (store.get('campo3d-nome', '') || '').trim() || 'Sem nome';
-  const em = new Date().toISOString();
-  clusters.forEach((c) => {
-    if (!c.info.id) return;
-    fila = fila.filter((f) => f.elemento !== c.info.id);
-    fila.push({ elemento: c.info.id, etapa, autor, ambiente: current ? current.label : '', em });
-  });
-  store.set('campo3d-fila', fila);
-  refreshEtapas();
-  sincronizar();
-}
-function renderSync(){
-  const el = $('sync');
-  el.className = 'sync ' + syncState;
-  const n = fila.length;
-  $('sync-txt').textContent = n ? n + ' a enviar' : syncState === 'ok' ? 'Sincronizado' : syncState === 'off' ? 'Sem conexão' : 'Conectando…';
-  el.title = n ? n + ' marcações salvas neste aparelho, aguardando internet para enviar.'
-    : syncState === 'ok' ? 'Todas as marcações estão salvas no servidor.' : 'Sem contato com o servidor. As marcações ficam guardadas neste aparelho.';
-}
-async function sincronizar(){
-  renderSync();
-  if (syncBusy || !fila.length) return;
-  syncBusy = true;
-  const lote = fila.slice(0, 200);
-  try {
-    const r = await fetch('/api/etapas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ obra: OBRA, marcacoes: lote }) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    lote.forEach((m) => { etapaServer[m.elemento] = { etapa: m.etapa, autor: m.autor, em: m.em }; });
-    fila = fila.filter((f) => !lote.includes(f));
-    store.set('campo3d-fila', fila);
-    syncState = 'ok';
-    refreshEtapas();
-  } catch (e) { syncState = 'off'; }
-  syncBusy = false;
-  renderSync();
-  if (fila.length && syncState === 'ok') sincronizar();
-}
-async function carregarEtapas(){
-  try {
-    const r = await fetch('/api/etapas?obra=' + OBRA, { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    etapaServer = d.pontos || {};
-    store.set('campo3d-etapas', etapaServer);
-    syncState = 'ok';
-  } catch (e) {
-    etapaServer = store.get('campo3d-etapas', etapaServer);
-    syncState = 'off';
-  }
-  renderSync();
-  refreshEtapas();
-  sincronizar();
-}
-etapaServer = store.get('campo3d-etapas', {});
-window.addEventListener('online', carregarEtapas);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carregarEtapas(); });
-setInterval(() => { if (document.visibilityState === 'visible') carregarEtapas(); }, 60000);
-$('sync').addEventListener('click', carregarEtapas);
-
-/* ---------------- Etiquetas de altura ---------------- */
-function buildTags(){
-  tomadaClusters.forEach((c) => {
-    const el = document.createElement('div');
-    el.className = 'tag st-' + c.info.status;
-    c.tagEl = el;
-    textoEtiqueta(c);
-    el.title = c.info.name + ' · ' + STATUS[c.info.status].label;
-    el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-    el.addEventListener('click', (ev) => { ev.stopPropagation(); selectCluster(c, false); });
-    const obj = new CSS2DObject(el);
-    obj.position.set(c.center.x, c.box.max.y, c.center.z);
-    c.tag = obj; c.tagEl = el;
-    paintCluster(c);
-    overlayGroup.add(obj);
-  });
-  applyTagState();
-}
-function applyTagState(){
-  store.set('campo3d-tags', tagsOn);
-  tomadaClusters.forEach((c) => { if (c.tag) c.tag.visible = tagsOn && !measureOn && c.visible; });
-  $('btn-tags').classList.toggle('active', tagsOn);
-}
-$('btn-tags').addEventListener('click', () => { const m = $('tag-menu'); m.hidden = !m.hidden; if (!m.hidden) renderTagMenu(); });
-$('tag-on').addEventListener('change', () => { tagsOn = $('tag-on').checked; applyTagState(); });
-$('stage').addEventListener('pointerdown', (e) => { if (!e.target.closest('#tag-menu') && !e.target.closest('#btn-tags')) $('tag-menu').hidden = true; });
-
-/* ---------------- Progresso ---------------- */
-function counts(){
-  const c = { all: tomadaClusters.length, executado: 0, pendente: 0, 'nao-conforme': 0, none: 0 };
-  tomadaClusters.forEach((t) => { c[t.info.status]++; });
-  return c;
-}
-function etapaCounts(){
-  const n = [0, 0, 0, 0, 0];
-  tomadaClusters.forEach((t) => { n[t.et ? t.et.etapa : 0]++; });
-  return n;
-}
-function renderTomadaProgress(){
-  const el = $('tomada-progress');
-  const c = counts();
-  if (!c.all) { el.hidden = true; return; }
-  /* Avanço por etapa: % de pontos que já chegaram a cada etapa (ou passaram dela). */
-  const n = etapaCounts();
-  const ate = (k) => n.slice(k).reduce((a, b) => a + b, 0);
-  const pct = (k) => Math.round(ate(k) / c.all * 100);
-  $('tp-track').innerHTML = [4, 3, 2, 1].map((k) => '<i class="et-' + k + '" style="width:' + (n[k] / c.all * 100) + '%;background:var(--et)"></i>').join('');
-  $('tp-text').innerHTML = '<b>Infra ' + pct(1) + '%</b> · ' + c.all + ' pontos' + '<span class="tp-2">' + (current.all ? '' : ' no ambiente') +
-    '<br>Enf. ' + pct(2) + '% · Acab. ' + pct(3) + '% · Teste ' + pct(4) + '%' + (c['nao-conforme'] ? ' &nbsp;<span class="tp-nc">' + c['nao-conforme'] + ' n/c</span>' : '') + '</span>';
-  /* Tomadas na divisa entre ambientes saem em mais de um arquivo; por isso o
-     total oficial do pavimento é o da aba "inteiro", não a soma das abas. */
-  el.title = current.all
-    ? 'Total oficial do pavimento. Toque para ver a lista.'
-    : 'Tomadas visíveis neste ambiente (as da divisa aparecem nos dois lados). O total oficial está na aba ' + current.floor.rooms.find((r) => r.all).label + '. Toque para ver a lista.';
-  el.hidden = false;
-}
-$('tomada-progress').addEventListener('click', () => openPanel(true));
-
-/* ---------------- Filtros: categoria, status e busca ---------------- */
-/* Contagem de caixas do ambiente (elementos únicos do Revit), no lugar das
-   categorias: caixa octogonal (teto) e caixa 4x2 (parede). */
-function renderCategoryFilters(){
-  const el = $('cat-filters');
-  el.innerHTML = '';
-  activeCats.clear();
-  const octo = new Set(), c42 = new Set();
-  meshIndex.forEach((m) => {
-    const nome = m.name || '';
-    if (!/caixa/i.test(nome)) return;
-    const id = (m.mesh.userData && m.mesh.userData.elementId) || m.mesh.uuid;
-    if (/octogonal/i.test(nome)) octo.add(id);
-    else if (/4\s*x\s*2/i.test(nome)) c42.add(id);
-  });
-  [['Caixa octogonal', octo.size], ['Caixa 4x2', c42.size]].forEach(([rot, n]) => {
-    const d = document.createElement('div');
-    d.className = 'cat-chip cx-chip';
-    d.innerHTML = '<span class="swatch" style="background:#ffd400"></span>' + rot + '<span class="n">' + n + '</span>';
-    el.appendChild(d);
-  });
-}
-function renderStatusFilter(){
-  const el = $('status-filter');
-  /* A situação agora é a etapa marcada no celular; a Marca virou o tipo do
-     ponto. O filtro antigo por Marca fica desligado. */
-  el.hidden = true; statusFilter = 'all'; return;
-  el.innerHTML = '';
-  const c = counts();
-  [['all', 'Todas'], ['pendente'], ['executado'], ['nao-conforme'], ['none']].forEach(([key, label]) => {
-    if (key !== 'all' && !c[key]) return;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'sf-btn st-' + key + (statusFilter === key ? ' active' : '');
-    b.innerHTML = (key === 'all' ? '' : '<span class="sdot"></span>') + (label || STATUS[key].label) + ' <span class="n">' + c[key] + '</span>';
-    b.addEventListener('click', () => { statusFilter = key; renderStatusFilter(); applyFilters(true); });
-    el.appendChild(b);
-  });
-}
-function renderEtapaFilter(){
-  const el = $('etapa-filter');
-  el.innerHTML = '';
-  const n = etapaCounts();
-  if (!tomadaClusters.length) return;
-  [['all', 'Todas etapas'], ...ETAPAS.map((e, k) => [k, e.curto])].forEach(([key, label]) => {
-    if (key !== 'all' && !n[key]) return;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'sf-btn et-f' + (key === 'all' ? '' : ' et-' + key) + (etapaFilter === key ? ' active' : '');
-    b.innerHTML = (key === 'all' ? '' : '<span class="edot"></span>') + label + ' <span class="n">' + (key === 'all' ? tomadaClusters.length : n[key]) + '</span>';
-    b.addEventListener('click', () => { etapaFilter = key; bulkPending = null; renderEtapaFilter(); renderBulk(); applyFilters(true); });
-    el.appendChild(b);
-  });
-}
-function clusterMatches(c, q){
-  const et = c.et ? c.et.etapa : 0;
-  return (statusFilter === 'all' || c.info.status === statusFilter) && (etapaFilter === 'all' || et === etapaFilter) &&
-    (!q || c.info.search.includes(q) || c.info.name.toLowerCase().includes(q) || ETAPAS[et].label.toLowerCase().includes(q));
-}
-function listedClusters(){
-  const q = searchInput.value.trim().toLowerCase();
-  const tomadasOff = activeCats.size > 0 && !activeCats.has('tomada');
-  return tomadasOff ? [] : tomadaClusters.filter((c) => clusterMatches(c, q));
-}
-
-/* Marcar em lote: todos os pontos da lista atual (depois dos filtros). Pede
-   confirmação na própria tela, sem janela do navegador. */
-function renderBulk(){
-  const box = $('bulk-box'), el = $('bulk');
-  const all = listedClusters().filter((c) => c.info.id);
-  box.hidden = !all.length;
-  el.innerHTML = '';
-  if (!all.length) return;
-  if (bulkPending !== null) {
-    /* Em lote só avança: pontos que já passaram dessa etapa não voltam. */
-    const items = all.filter((c) => c.et.etapa < bulkPending);
-    $('bulk-lbl').textContent = '';
-    const w = document.createElement('div');
-    w.className = 'bulk-confirm';
-    w.appendChild(document.createTextNode(items.length
-      ? 'Avançar ' + items.length + (items.length === 1 ? ' ponto' : ' pontos') + ' para ' + ETAPAS[bulkPending].curto + '?' + (all.length > items.length ? ' (' + (all.length - items.length) + ' já estão nessa etapa ou além)' : '')
-      : 'Todos os pontos da lista já estão em ' + ETAPAS[bulkPending].curto + ' ou além.'));
-    const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'yes'; yes.textContent = 'Confirmar';
-    const no = document.createElement('button'); no.type = 'button'; no.textContent = 'Cancelar';
-    yes.addEventListener('click', () => { const k = bulkPending; bulkPending = null; marcar(items, k); });
-    no.addEventListener('click', () => { bulkPending = null; renderBulk(); });
-    if (items.length) w.append(yes, no); else { no.textContent = 'Ok'; w.append(no); }
-    el.appendChild(w);
-    return;
-  }
-  $('bulk-lbl').textContent = 'Avançar os ' + all.length + ' pontos da lista para:';
-  ETAPAS.forEach((e, k) => {
-    if (!k) return;
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'sf-btn et-' + k;
-    b.innerHTML = '<span class="edot"></span>' + e.curto;
-    b.addEventListener('click', () => { bulkPending = k; renderBulk(); });
-    el.appendChild(b);
-  });
-}
-
-/* Nome de quem marca e modo de cor */
-$('who').value = store.get('campo3d-nome', '');
-$('who').addEventListener('input', () => store.set('campo3d-nome', $('who').value.trim()));
-
-
-function applyFilters(reframe){
-  const q = searchInput.value.trim().toLowerCase();
-  $('search-clear').hidden = !q;
-  const pointFilter = !!q || statusFilter !== 'all';
-  const box = new THREE.Box3();
-  meshIndex.forEach((e) => {
-    let vis = activeCats.size === 0 || activeCats.has(e.cat);
-    if (vis && e.cat === 'tomada' && e.pointGroup) vis = clusterMatches(e.pointGroup, q);
-    e.mesh.visible = vis;
-  });
-  tomadaClusters.forEach((c) => {
-    c.visible = c.entries.some((e) => e.mesh.visible);
-    if (c.visible && pointFilter) box.union(c.box);
-  });
-  if (!pointFilter) meshIndex.forEach((e) => { if (e.mesh.visible) box.union(e.box); });
-  applyTagState();
-  renderList(q);
-  if (reframe && !box.isEmpty()) frameToSphere(worldBox(box).getBoundingSphere(new THREE.Sphere()));
-}
-searchInput.addEventListener('input', () => applyFilters(false));
-searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { searchInput.blur(); applyFilters(true); } });
-$('search-clear').addEventListener('click', () => { searchInput.value = ''; applyFilters(true); });
-
-/* ---------------- Lista de tomadas ---------------- */
-function renderList(q){
-  listEl.innerHTML = '';
-  const tomadasOff = activeCats.size > 0 && !activeCats.has('tomada');
-  const items = tomadasOff ? [] : tomadaClusters.filter((c) => clusterMatches(c, q));
-  renderBulk();
-  $('panel-h').textContent = 'Tomadas · ' + (current ? current.label : '');
-  $('panel-meta').textContent = tomadasOff ? 'As tomadas estão ocultas pelo filtro de categoria.'
-    : items.length + (items.length === 1 ? ' ponto' : ' pontos') + ((q || statusFilter !== 'all' || etapaFilter !== 'all') ? ' encontrados' : '') + '';
-  if (!items.length) { listEl.innerHTML = '<div class="empty-hint">Nenhuma tomada com esse filtro.</div>'; return; }
-  const frag = document.createDocumentFragment();
-  items.forEach((c) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 't-row' + (c === selectedCluster ? ' selected' : '');
-    const dot = colorMode === 'etapa' ? '<span class="edot et-' + c.et.etapa + '"></span>' : '<span class="sdot st-' + c.info.status + '"></span>';
-    b.innerHTML = dot + '<span class="t-name"></span><span class="t-h"></span><span class="t-sub"></span>';
-    b.querySelector('.t-name').textContent = c.info.marca || c.info.name;
-    b.querySelector('.t-h').textContent = c.info.altura || '—';
-    b.querySelector('.t-sub').textContent = [ETAPAS[c.et.etapa].curto + (c.et.local ? ' (a enviar)' : ''), valorParam(c, 'Marca') || c.info.dims, c.info.comentario].filter(Boolean).join(' · ');
-    b.addEventListener('click', () => {
-      selectCluster(c, true);
-      if (window.innerWidth <= 640) openPanel(false);
-      else renderList(searchInput.value.trim().toLowerCase());
-    });
-    frag.appendChild(b);
-  });
-  listEl.appendChild(frag);
-}
-function openPanel(open){
-  panel.classList.toggle('closed', !open);
-  $('btn-list').classList.toggle('active', open);
-}
-$('btn-list').addEventListener('click', () => openPanel(panel.classList.contains('closed')));
-$('panel-close').addEventListener('click', () => openPanel(false));
-$('panel-handle').addEventListener('click', () => openPanel(false));
-
-/* ---------------- Seleção ---------------- */
-function clearSelection(){
-  outlines.forEach((o) => { overlayGroup.remove(o); o.geometry.dispose(); });
-  outlines = [];
-  if (selectedCluster && selectedCluster.tagEl) selectedCluster.tagEl.classList.remove('hit');
-  selectedCluster = null;
-  selBar.classList.remove('show');
-}
-function outline(meshes, color){
-  meshes.forEach((m) => {
-    const line = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 20), new THREE.LineBasicMaterial({ color, depthTest: false }));
-    line.renderOrder = 10;
-    m.updateWorldMatrix(true, false); line.applyMatrix4(m.matrixWorld);
-    overlayGroup.add(line); outlines.push(line);
-  });
-}
-function selectCluster(c, focus){
-  clearSelection();
-  selectedCluster = c;
-  if (c.tagEl) c.tagEl.classList.add('hit');
-  outline(c.entries.map((e) => e.mesh), 0xc9700f);
-  const i = c.info;
-  selTitle.textContent = (valorParam(c, 'Marca') || i.dims || i.name).replace(/''/g, '"');
-  selMeasures.innerHTML = '';
-  const esc = (t) => String(t).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m]);
-  const proj = valorParam(c, 'Cota em Projeto'), loco = valorParam(c, 'Cota in loco');
-  const igual = proj && loco && norm(proj).replace(/\s+/g, ' ') === norm(loco).replace(/\s+/g, ' ');
-  const cotas = document.createElement('div');
-  cotas.className = 'cotas';
-  if (!proj && !loco) cotas.innerHTML = '<div class="cota vazio">Cotas não preenchidas no Revit</div>';
-  else cotas.innerHTML =
-    '<div class="cota"><span class="cl">Cota em projeto</span><b>' + esc(proj || '—') + '</b></div>' +
-    '<div class="cota loco ' + (!loco ? '' : igual ? 'ok' : 'dif') + '"><span class="cl">Cota in loco</span><b>' + esc(loco || '—') + '</b>' +
-    (loco && proj ? '<em>' + (igual ? 'confere' : 'difere do projeto') + '</em>' : '') + '</div>';
-  selMeasures.appendChild(cotas);
-  camposDe(c).filter((f) => f.fav).forEach((f) => {
-    const sp = document.createElement('span'); sp.className = 'm'; sp.textContent = f.rotulo + ': ';
-    const bb = document.createElement('b'); bb.textContent = f.valor; sp.appendChild(bb); selMeasures.appendChild(sp);
-  });
-  renderSelEtapa(c);
-  /* Posição calculada e todas as propriedades saíram do balão (renderMais) a pedido da obra. */
-  selBar.classList.add('show');
-  if (focus) {
-    const s = worldBox(c.box).getBoundingSphere(new THREE.Sphere());
-    s.radius = Math.max(s.radius, 0.6);
-    frameToSphere(s);
-  }
-}
-/* Botões de etapa no balão: tocar marca a etapa; tocar de novo na etapa atual
-   volta para a anterior (desfazer um toque errado). */
-function renderSelEtapa(c){
-  let box = $('sel-etapa');
-  if (!box) { box = document.createElement('div'); box.id = 'sel-etapa'; selMeasures.parentNode.appendChild(box); }
-  box.innerHTML = '';
-  if (!c.info.id) { box.innerHTML = '<div class="et-meta">Sem número de elemento no modelo: não dá para marcar etapa.</div>'; return; }
-  const row = document.createElement('div');
-  row.className = 'etapa-row';
-  ETAPAS.forEach((e, k) => {
-    if (!k) return;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'et-btn et-' + k + (c.et.etapa === k ? ' on' : c.et.etapa > k ? ' done' : '');
-    b.innerHTML = '<span class="edot"></span>' + e.curto;
-    b.addEventListener('click', () => marcar([c], c.et.etapa === k ? k - 1 : k));
-    row.appendChild(b);
-  });
-  box.appendChild(row);
-  const meta = document.createElement('div');
-  meta.className = 'et-meta';
-  if (c.et.etapa && c.et.em) {
-    const d = new Date(c.et.em);
-    const quando = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    meta.innerHTML = 'Etapa: <b></b> · ' + (c.et.autor || 'Sem nome') + ' · ' + quando + (c.et.local ? ' · aguardando envio' : '');
-    meta.querySelector('b').textContent = ETAPAS[c.et.etapa].curto;
-  } else meta.textContent = 'Etapa: não iniciado' + (store.get('campo3d-nome', '') ? '' : ' · informe seu nome na lista para assinar as marcações');
-  box.appendChild(meta);
-}
-/* Caixa fixa dentro do balão, na ordem em que é criada pela primeira vez. */
-function selBox(id){
-  let box = $(id);
-  if (!box) { box = document.createElement('div'); box.id = id; selMeasures.parentNode.appendChild(box); }
-  box.innerHTML = '';
-  return box;
-}
-
-/* ---------------- Posição do ponto ----------------
-   Ponto vizinho: o mais próximo em planta, pelo centro. Paredes transversais:
-   acha a direção da parede pela guia do LSF mais próxima e mede, pelos dois
-   lados, até a primeira peça da estrutura que cruza o caminho, a 15 cm da face.
-   É medida no aço (sem placa) e só funciona com paredes alinhadas aos eixos
-   do Revit; quando não dá para medir, o app diz. */
-const rc2 = new THREE.Raycaster();
-function direcaoParede(p, estrut){
-  let dir = null, best = Infinity;
-  estrut.forEach((e) => {
-    const b = e.box, sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
-    if (Math.max(sx, sz) < 0.8 || Math.min(sx, sz) > 0.2 || sy > 0.3) return;   // só guias horizontais
-    const aoLongoX = sx > sz;
-    const dentro = aoLongoX ? p.x > b.min.x - 0.1 && p.x < b.max.x + 0.1 : p.z > b.min.z - 0.1 && p.z < b.max.z + 0.1;
-    if (!dentro) return;
-    const d = aoLongoX ? Math.abs(p.z - (b.min.z + b.max.z) / 2) : Math.abs(p.x - (b.min.x + b.max.x) / 2);
-    if (d < best) { best = d; dir = aoLongoX ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1); }
-  });
-  return best <= 0.3 ? dir : null;
-}
-function distParedes(c){
-  const estrut = meshIndex.filter((e) => e.cat === 'estrutura' || e.cat === 'suporte');
-  if (!estrut.length) return null;
-  const p = c.center.clone();
-  const dir = direcaoParede(p, estrut);
-  if (!dir) return null;
-  const n = new THREE.Vector3(dir.z, 0, -dir.x);
-  const alvos = estrut.map((e) => e.mesh);
-  return [dir, dir.clone().negate()].map((d) => {
-    let m = Infinity;
-    [0.15, -0.15].forEach((off) => {
-      rc2.set(p.clone().addScaledVector(n, off), d);
-      rc2.far = 8;
-      const hit = rc2.intersectObjects(alvos, false).find((h) => h.distance > 0.03);
-      if (hit) m = Math.min(m, hit.distance);
-    });
-    return m;
-  });
-}
-let maisAberto = false;
-function renderMais(c){
-  const box = selBox('sel-mais');
-  const det = document.createElement('details');
-  det.className = 'props';
-  det.open = maisAberto;
-  const sum = document.createElement('summary');
-  sum.textContent = 'Mais detalhes · posição e todas as propriedades';
-  det.appendChild(sum);
-  box.appendChild(det);
-  const preencher = () => {
-    if (det.dataset.ok) return; det.dataset.ok = '1';
-    const pos = document.createElement('div'); det.appendChild(pos); renderPosicao(c, pos);
-    const pr = document.createElement('div'); det.appendChild(pr); renderProps(c, pr);
+/* --- câmera --- */
+let anim = null;
+function voar(pos, tgt, ms = 450){
+  if (ms === 0) { camera.position.copy(pos); controls.target.copy(tgt); controls.update(); return; }
+  const p0 = camera.position.clone(), t0 = controls.target.clone(), s = performance.now();
+  anim = (now) => {
+    let k = Math.min(1, (now - s) / ms); k = 1 - Math.pow(1 - k, 3);
+    camera.position.lerpVectors(p0, pos, k); controls.target.lerpVectors(t0, tgt, k);
+    if (k >= 1) anim = null;
   };
-  det.addEventListener('toggle', () => { maisAberto = det.open; if (det.open) preencher(); });
-  if (det.open) preencher();
 }
-function renderPosicao(c, alvo){
-  const box = alvo || selBox('sel-pos');
-  box.className = 'et-meta';
-  const pos = posDe(c, false);
-  if (pos.paredes === undefined) calcParede(c);
-  const viz = pos.vizC, dv = pos.viz;
-  const linhas = [];
-  if (viz) linhas.push('Ponto vizinho: <b>' + fmtDist(dv) + '</b> até ' + viz.info.name.replace('Ponto ', '') + (Math.abs(viz.center.y - c.center.y) > 0.05 ? ' (' + (viz.info.altura || '?') + ' de altura)' : ''));
-  const par = pos.paredes;
-  if (pos.revit) linhas.push('Distância à parede: <b>' + fmtDist(pos.parede) + '</b> <span style="opacity:.75">(Revit)</span>');
-  else if (par) {
-    const txt = par.filter(isFinite).sort((a, b) => a - b).map((v) => '<b>~' + fmtDist(v) + '</b>');
-    linhas.push(txt.length ? 'Paredes transversais: ' + txt.join(' e ') + ' <span style="opacity:.75">(estimado no modelo, do centro até o aço; confira com a trena)</span>' : 'Paredes transversais: nenhuma no modelo a menos de 8 m');
-  } else linhas.push('Paredes transversais: não deu para medir neste ponto');
-  box.innerHTML = linhas.join('<br>');
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'mini-btn'; b.textContent = 'Medir a partir deste ponto';
-  b.addEventListener('click', () => { const p = c.center.clone(); setMeasure(true); addMeasurePoint(p); });
-  box.appendChild(b);
+function enquadrar(planta = false, instant = false){
+  const c = modelBox.getCenter(new THREE.Vector3()), sz = modelBox.getSize(new THREE.Vector3());
+  const r = Math.max(sz.x, sz.z) * 0.5 + 1;
+  const d = r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.aspect < 1 ? 0.8 / camera.aspect : 1.0);
+  const pos = planta ? new THREE.Vector3(c.x, c.y + d, c.z + 0.01) : new THREE.Vector3(c.x + d * 0.55, c.y + d * 0.62, c.z + d * 0.62);
+  camera.near = Math.max(0.05, d / 500); camera.far = d * 20; camera.updateProjectionMatrix();
+  voar(pos, c, instant ? 0 : 500);
+}
+function focar(code){
+  const p = paineis.get(code); if (!p) return;
+  const sz = p.box.getSize(new THREE.Vector3());
+  const r = Math.max(sz.x, sz.y, sz.z, 2.5);
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  if (dir.y > 0.9) dir.set(0.5, 0.7, 0.5).normalize();
+  const d = r * (camera.aspect < 1 ? 2.6 : 1.8);
+  voar(p.center.clone().add(dir.multiplyScalar(d)), p.center.clone());
 }
 
-/* ---------------- Todas as propriedades ---------------- */
-let propsAbertas = false;
-function renderProps(c, alvo){
-  const box = alvo || selBox('sel-props');
-  const det = document.createElement('details');
-  det.className = 'props';
-  det.open = propsAbertas;
-  det.addEventListener('toggle', () => { propsAbertas = det.open; });
-  const sum = document.createElement('summary');
-  sum.textContent = 'Todas as propriedades · toque na estrela para fixar no balão';
-  det.appendChild(sum);
-  (c.props || []).forEach((pr) => {
-    const h = document.createElement('div');
-    h.className = 'props-h';
-    h.textContent = (pr.cat || 'Elemento') + (pr.el ? ' #' + pr.el : '');
-    det.appendChild(h);
-    Object.keys(pr.params).filter((k) => !RUIDO.test(k)).forEach((k) => {
-      const v = pr.params[k];
-      if (v === undefined || v === null || v === '' || v === 'Não Listar') return;
-      const row = document.createElement('div');
-      row.className = 'props-r';
-      const fav = favoritos.some((f) => norm(f) === norm(k)) || CAMPOS.some((f) => norm(f.param) === norm(k));
-      const st = document.createElement('button');
-      st.type = 'button'; st.className = 'star' + (fav ? ' on' : '');
-      st.textContent = fav ? '★' : '☆';
-      st.setAttribute('aria-label', (fav ? 'Tirar do balão: ' : 'Fixar no balão: ') + k);
-      st.disabled = CAMPOS.some((f) => norm(f.param) === norm(k));
-      st.addEventListener('click', () => {
-        favoritos = fav ? favoritos.filter((f) => norm(f) !== norm(k)) : [...favoritos, k];
-        store.set('campo3d-campos', favoritos);
-        selectCluster(c, false);
-      });
-      const kk = document.createElement('span'); kk.className = 'k'; kk.textContent = k;
-      const vv = document.createElement('span'); vv.className = 'v'; vv.textContent = String(v);
-      row.append(st, kk, vv);
-      det.appendChild(row);
-    });
-  });
-  box.appendChild(det);
-}
-function selectMesh(mesh){
-  const entry = meshIndex.find((m) => m.mesh === mesh);
-  if (entry && entry.pointGroup) { selectCluster(entry.pointGroup, false); return; }
-  clearSelection();
-  outline([mesh], 0xc9700f);
-}
-$('sel-close').addEventListener('click', clearSelection);
-
-/* ---------------- Medição ---------------- */
-let measureOn = false, mPoints = [], mObjects = [];
-function clearMeasure(){ mObjects.forEach((o) => { overlayGroup.remove(o); o.geometry && o.geometry.dispose(); }); mObjects = []; mPoints = []; }
-function showHint(html){ const h = $('hint'); h.innerHTML = html; h.hidden = !html; }
-function measureHint(){
-  if (!measureOn) { showHint(''); return; }
-  const txt = mPoints.length === 1 ? 'Toque no segundo ponto' : mPoints.length === 2 ? 'Toque para começar outra medida' : 'Toque no primeiro ponto para medir';
-  showHint(txt + '<button id="hint-off" type="button">Sair</button>');
-  $('hint-off').addEventListener('click', () => setMeasure(false));
-}
-function setMeasure(on){
-  measureOn = on;
-  $('btn-measure').classList.toggle('active', on);
-  if (on) clearSelection(); else clearMeasure();
-  applyTagState();
-  measureHint();
-}
-$('btn-measure').addEventListener('click', () => setMeasure(!measureOn));
-function addMeasurePoint(p){
-  if (mPoints.length === 2) clearMeasure();
-  mPoints.push(p.clone());
-  const r = Math.max(fitSphere.radius * 0.004, 0.015);
-  const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), new THREE.MeshBasicMaterial({ color: 0xc9700f, depthTest: false }));
-  dot.renderOrder = 11; dot.position.copy(p);
-  overlayGroup.add(dot); mObjects.push(dot);
-  if (mPoints.length === 2) {
-    const [a, b] = mPoints;
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: 0xc9700f, depthTest: false }));
-    line.renderOrder = 11; overlayGroup.add(line); mObjects.push(line);
-    const el = document.createElement('div');
-    el.className = 'mtag';
-    const dv = Math.abs(b.y - a.y), dh = Math.hypot(b.x - a.x, b.z - a.z);
-    const fmtLen = (v) => v < 1 ? Math.round(v * 100) + ' cm' : v.toFixed(2).replace('.', ',') + ' m';
-    el.innerHTML = fmtLen(a.distanceTo(b)) + '<small>vert. ' + fmtLen(dv) + ' · horiz. ' + fmtLen(dh) + '</small>';
-    const lbl = new CSS2DObject(el);
-    lbl.position.copy(a).add(b).multiplyScalar(0.5);
-    overlayGroup.add(lbl); mObjects.push(lbl);
-  }
-  measureHint();
-}
-
-/* ---------------- Toque no 3D ---------------- */
-const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
-let downPos = null;
-renderer.domElement.addEventListener('pointerdown', (e) => { downPos = { x: e.clientX, y: e.clientY }; });
+/* --- toque / clique --- */
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let down = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; anim = null; });
 renderer.domElement.addEventListener('pointerup', (e) => {
-  if (!downPos) return;
-  const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y); downPos = null;
-  if (moved > 6) return;
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
+  if (moved > 8 || dt > 600) return;
   const r = renderer.domElement.getBoundingClientRect();
-  pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-  raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(allMeshes.filter((m) => m.visible), false);
-  if (measureOn) { if (hits.length) addMeasurePoint(hits[0].point); return; }
-  if (hits.length) selectMesh(hits[0].object); else clearSelection();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const vis = filtro == null ? alvoPick : alvoPick.filter((m) => etapa(m.userData.code) === filtro);
+  const hit = ray.intersectObjects(vis, false)[0];
+  if (hit) selecionar(hit.object.userData.code, false); else fecharSheet();
 });
 
-/* ---------------- Troca de ambiente ---------------- */
-function showRoot(room, root){
-  clearSelection(); clearMeasure(); measureHint();
-  overlayGroup.clear();
-  modelGroup.clear();
-  modelGroup.add(root);
-  buildIndex(root);
-  activeCats = new Set();
-  statusFilter = 'all'; etapaFilter = 'all'; bulkPending = null;
-  searchInput.value = '';
-  new THREE.Box3().setFromObject(modelGroup).getBoundingSphere(fitSphere);
-  buildTags();
-  applyFilters(false);
-  frameToSphere(fitSphere);
-  renderTomadaProgress();
-  renderCategoryFilters();
-  renderStatusFilter();
-  renderEtapaFilter();
-  renderBulk();
-  renderRooms();
-  loadingEl.classList.add('hide');
+/* Rótulos: mostra os mais próximos da câmera e esconde os que cairiam em cima de outro. */
+let lastDeclutter = 0; const _v = new THREE.Vector3();
+function declutter(){
+  const w = view.clientWidth, h = view.clientHeight, placed = [];
+  const lista = [...paineis.values()].map((p) => ({ p, d: camera.position.distanceToSquared(p.tag.position) }))
+    .sort((a, b) => (b.p.code === sel) - (a.p.code === sel) || a.d - b.d);
+  for (const { p } of lista) {
+    if (!tagsOn) { p.tag.visible = false; continue; }
+    _v.copy(p.tag.position).project(camera);
+    if (_v.z > 1 || Math.abs(_v.x) > 1.1 || Math.abs(_v.y) > 1.1) { p.tag.visible = false; continue; }
+    const x = (_v.x + 1) / 2 * w, y = (1 - _v.y) / 2 * h, bw = 30, bh = 18;
+    const hit = p.code !== sel && placed.some((r) => Math.abs(r.x - x) < bw && Math.abs(r.y - y) < bh);
+    p.tag.visible = !hit; if (!hit) placed.push({ x, y });
+  }
 }
-
-function selectRoom(room){
-  if (current && current.id === room.id) { frameToSphere(fitSphere); return; }
-  current = room;
-  ROOMS = room.floor.rooms;
-  lastRoomByFloor[room.floor.id] = room;
-  titleEl.textContent = room.all ? room.floor.label : room.label;
-  try { history.replaceState(null, '', '#' + room.id); } catch (e) {}
-  renderFloors(); renderRooms(); renderKeyplan();
-
-  if (cache.has(room.id)) { showRoot(room, cache.get(room.id)); return; }
-
-  loadingEl.classList.remove('hide');
-  loadLabel.textContent = 'Carregando ' + room.label + ' · ' + fmtMB(room.mb);
-  errEl.style.display = 'none'; pctEl.textContent = '0%'; barEl.style.width = '0%';
-  const requested = room.id;
-  loader.load(room.file, (gltf) => {
-    const root = gltf.scene || gltf.scenes[0];
-    /* Todos os arquivos usam a mesma origem do Revit; centralizamos cada um
-       para a câmera orbitar em volta do ambiente. */
-    const c = new THREE.Box3().setFromObject(root).getCenter(new THREE.Vector3());
-    root.position.sub(c);
-    cache.set(room.id, root);
-    downloaded.add(room.file);
-    if (!current || current.id !== requested) { renderRooms(); return; }
-    showRoot(room, root);
-    schedulePrefetch();
-  }, (evt) => {
-    if (!evt.total || !current || current.id !== requested) return;
-    const p = Math.min(100, Math.round(evt.loaded / evt.total * 100));
-    pctEl.textContent = p + '%'; barEl.style.width = p + '%';
-  }, (err) => {
-    console.error(err);
-    loadLabel.textContent = 'Falha ao carregar';
-    pctEl.textContent = '';
-    errEl.style.display = 'block';
-    errEl.textContent = navigator.onLine === false
-      ? room.label + ' ainda não foi baixado neste aparelho. Abra com internet uma vez para ficar disponível offline.'
-      : 'Não foi possível abrir ' + room.label + '. Verifique a conexão e toque na aba de novo.';
-    current = null; renderFloors(); renderRooms();
-  });
-}
-
-/* ---------------- Abrir mais rápido: pré-download + offline ----------------
-   Depois que o ambiente atual abre, os outros arquivos são baixados em segundo
-   plano, um por vez (o service worker guarda para uso sem internet). Quem está
-   com "economia de dados" ligada no celular não recebe o pré-download. */
-let prefetching = false;
-function schedulePrefetch(){
-  if (prefetching || (navigator.connection && navigator.connection.saveData)) return;
-  prefetching = true;
-  const queue = [...(current ? current.floor.rooms : []), ...ALL_ROOMS].filter((r, i, a) => a.indexOf(r) === i && !downloaded.has(r.file));
-  const next = () => {
-    const r = queue.shift();
-    if (!r) { prefetching = false; return; }
-    if (downloaded.has(r.file)) { next(); return; }
-    fetch(r.file).then((res) => res.ok ? res.arrayBuffer() : null).then((buf) => {
-      if (buf) { downloaded.add(r.file); renderRooms(); }
-    }).catch(() => {}).finally(() => setTimeout(next, 300));
-  };
-  setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(next) : next()), 1500);
-}
-async function checkOfflineCache(){
-  try {
-    if (!('caches' in window)) return;
-    const c = await caches.open('campo3d-modelos');
-    await Promise.all(ALL_ROOMS.map(async (r) => { if (await c.match(new URL(r.file, location.href).href)) downloaded.add(r.file); }));
-    renderRooms();
-  } catch (e) {}
-}
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
-  navigator.serviceWorker.addEventListener('message', (ev) => {
-    if (ev.data && ev.data.type === 'model-updated') {
-      showHint('Modelo atualizado no Revit.<button id="hint-reload" type="button">Recarregar</button>');
-      $('hint-reload').addEventListener('click', () => location.reload());
-    }
-  });
-}
-
-/* ---------------- Ferramentas ---------------- */
-$('btn-reset').addEventListener('click', () => {
-  clearSelection(); activeCats.clear(); statusFilter = 'all'; etapaFilter = 'all'; bulkPending = null; searchInput.value = '';
-  renderCategoryFilters(); renderStatusFilter(); renderEtapaFilter(); applyFilters(false); frameToSphere(fitSphere);
-});
-$('btn-top').addEventListener('click', () => frameToSphere(fitSphere, true));
-$('btn-full').addEventListener('click', () => {
-  try { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.()?.catch?.(() => {}); else document.exitFullscreen?.(); } catch (e) {}
-});
-if (window.innerWidth < 400) { $('keyplan').classList.add('min'); $('kp-caret').textContent = '+'; }
-
-/* ---------------- Início ----------------
-   Abre direto num ambiente leve (Garagem) para o celular não baixar o térreo
-   inteiro logo de cara. #id no link abre outro ambiente (ex.: #jantar). */
-(function loop(){
+function loop(now){
   requestAnimationFrame(loop);
+  if (anim) anim(now);
+  if (now - lastDeclutter > 120) { lastDeclutter = now; declutter(); }
   controls.update();
-  updateTagVisibility();
-  renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
-})();
-checkOfflineCache();
-renderSync();
-carregarEtapas();
-const fromHash = ALL_ROOMS.find((r) => '#' + r.id === location.hash);
-selectRoom(fromHash || ALL_ROOMS.find((r) => r.id === 'garagem'));
+  renderer.render(scene, camera); labelR.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+/* ================= Interface ================= */
+const $ = (id) => document.getElementById(id);
+let toastT;
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1800); }
+
+function contagem(lista){
+  const c = ST.map(() => 0); lista.forEach((p) => c[etapa(p.code)]++); return c;
+}
+function renderTopo(){
+  const c = contagem(PECAS), tot = PECAS.length;
+  $('prog-text').innerHTML = `<b>${c[4]}</b>/${tot} com esquadro ok` + (c[5] ? ` · <span style="color:#c43030;font-weight:700">${c[5]} c/ problema</span>` : '');
+  $('prog-track').innerHTML = [4,3,2,1,5].map((i) => c[i] ? `<i style="width:${c[i] / tot * 100}%;background:${ST[i].c}"></i>` : '').join('');
+}
+function renderLegenda(){
+  const pv = PECAS.filter((p) => paineis.has(p.code)), c = contagem(pv);
+  const lg = $('legend'); const min = lg.classList.contains('min');
+  lg.classList.toggle('filtering', filtro != null);
+  lg.innerHTML = `<button class="lh" id="lg-h"><span>PV1 · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
+    ST.map((s, i) => `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${s.c}"></span>${s.n}<span class="n">${c[i]}</span></button>`).join('');
+  lg.querySelectorAll('.chip').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
+  $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
+}
+
+/* --- folha do painel --- */
+function selecionar(code, voarAte = true){
+  sel = code; renderSheet(); pintar(); renderLista();
+  if (voarAte && paineis.has(code)) focar(code);
+}
+function fecharSheet(){ sel = null; probAberto = false; $('sheet').hidden = true; pintar(); renderLista(); }
+let probAberto = false;
+function vizinho(code, d){
+  const i = PECAS.findIndex((p) => p.code === code), g = PECA[code].grupo;
+  const lista = PECAS.filter((p) => p.grupo === g); const j = lista.findIndex((p) => p.code === code);
+  return lista[(j + d + lista.length) % lista.length].code;
+}
+const ICON_PDF = '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+const ICON_ALVO = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
+function renderSheet(){
+  const sh = $('sheet'); if (!sel) { sh.hidden = true; return; }
+  const code = sel, s = estado(code), e = s?.etapa ?? 0, p = paineis.get(code), g = GRUPOS.find((x) => x.id === PECA[code].grupo);
+  const meta = s && s.autor ? `${s.autor}<br>${quando(s.em)}${s.pend ? ' · na fila' : ''}` : 'sem marcação';
+  sh.innerHTML = `
+    <div class="sh-head">
+      <div><h2 class="mono">${code}</h2><div class="sub">${g.nome}${p ? '' : ' · sem 3D no modelo'}</div></div>
+      <span class="sp"></span>
+      <div class="nav"><button id="sh-prev" aria-label="Peça anterior">‹</button><button id="sh-next" aria-label="Próxima peça">›</button></div>
+      <button class="x" id="sh-x" aria-label="Fechar">×</button>
+    </div>
+    <div class="cur"><span class="sw" style="background:${ST[e].c}"></span><b>${ST[e].n}</b><span class="meta">${meta}</span></div>
+    ${e === 5 && s?.nota ? `<div class="note"><b>Problema:</b> ${esc(s.nota)}</div>` : ''}
+    <div class="steps">${[1,2,3,4].map((i) => `<button class="step ${e !== 5 && e >= i ? 'done' : ''} ${e === i ? 'now' : ''}" data-e="${i}" style="--c:${ST[i].c}"><span class="ck">${e !== 5 && e >= i ? '✓' : ''}</span>${ST[i].n}</button>`).join('')}</div>
+    ${probAberto ? `<div class="prob"><textarea id="prob-t" placeholder="O que está errado? Ex.: montante fora de prumo, furo faltando…">${e === 5 ? esc(s?.nota || '') : ''}</textarea>
+      <div class="row2"><button class="btn" id="prob-c">Cancelar</button><button class="btn bad on" id="prob-ok">Marcar com problema</button></div></div>` : ''}
+    <div class="row2">
+      <a class="btn primary" href="${prancha(code)}" target="_blank" rel="noopener">${ICON_PDF}Abrir prancha</a>
+      ${p ? `<button class="btn" id="sh-focus" style="flex:none;padding:10px 12px" title="Centralizar no 3D">${ICON_ALVO}</button>` : ''}
+      ${probAberto ? '' : `<button class="btn bad ${e === 5 ? 'on' : ''}" id="sh-prob" style="flex:none;padding:10px 12px">${e === 5 ? 'Com problema' : 'Problema'}</button>`}
+    </div>
+    <div class="facts">${p && p.vol ? `<span>Volume <b>${esc(p.vol)}</b></span>` : ''}${e > 0 ? `<button class="btn ghost" id="sh-zero">Desfazer: voltar a não iniciado</button>` : ''}</div>`;
+  sh.hidden = false;
+  $('sh-x').onclick = fecharSheet;
+  $('sh-prev').onclick = () => { probAberto = false; selecionar(vizinho(code, -1)); };
+  $('sh-next').onclick = () => { probAberto = false; selecionar(vizinho(code, 1)); };
+  sh.querySelectorAll('.step').forEach((b) => b.onclick = () => { probAberto = false; marcar(code, +b.dataset.e); });
+  $('sh-focus') && ($('sh-focus').onclick = () => focar(code));
+  $('sh-prob') && ($('sh-prob').onclick = () => { probAberto = true; renderSheet(); setTimeout(() => $('prob-t')?.focus(), 30); });
+  $('prob-c') && ($('prob-c').onclick = () => { probAberto = false; renderSheet(); });
+  $('prob-ok') && ($('prob-ok').onclick = () => { const t = $('prob-t').value.trim(); probAberto = false; marcar(code, 5, t); });
+  $('sh-zero') && ($('sh-zero').onclick = () => { probAberto = false; marcar(code, 0); });
+}
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+/* --- lista --- */
+let grupoAtivo = 'PV1';
+function renderLista(){
+  if ($('list').hidden) return;
+  const q = $('q').value.trim().toUpperCase();
+  $('groups').innerHTML = GRUPOS.map((g) => {
+    const l = PECAS.filter((p) => p.grupo === g.id), c = contagem(l);
+    return `<button class="${grupoAtivo === g.id && !q ? 'on' : ''}" data-g="${g.id}">${g.nome}<small>${c[4]}/${l.length} ok${c[5] ? ' · ' + c[5] + ' prob.' : ''}</small></button>`;
+  }).join('');
+  $('groups').querySelectorAll('button').forEach((b) => b.onclick = () => { grupoAtivo = b.dataset.g; $('q').value = ''; renderLista(); });
+  let lista;
+  if (q) {
+    const nq = normCode(q), num = /^\d+$/.test(q) ? +q : null;
+    lista = PECAS.filter((p) => p.code === nq || p.code.replace('-', '').includes(q.replace(/[\s-]/g, '')) || (num != null && p.num === num && p.grupo === grupoAtivo));
+  } else lista = PECAS.filter((p) => p.grupo === grupoAtivo);
+  if (filtro != null) lista = lista.filter((p) => etapa(p.code) === filtro);
+  // problemas primeiro, depois a ordem do número
+  lista = lista.slice().sort((a, b) => (etapa(b.code) === 5) - (etapa(a.code) === 5) || PECAS.indexOf(a) - PECAS.indexOf(b));
+  $('items').innerHTML = lista.length ? lista.map((p) => {
+    const s = estado(p.code), e = s?.etapa ?? 0;
+    const sub = s?.autor ? `${esc(s.autor)} · ${quando(s.em)}${s.pend ? ' · na fila' : ''}${e === 5 && s.nota ? ' · ' + esc(s.nota) : ''}` : '';
+    return `<button class="it ${sel === p.code ? 'sel' : ''}" data-c="${p.code}"><span class="sw" style="background:${ST[e].c}"></span><span class="cd">${p.code}</span><span class="st">${ST[e].n}${sub ? `<small>${sub}</small>` : ''}</span>${p.grupo === 'PV1' && !paineis.has(p.code) && paineis.size ? '<span class="no3d">fora do 3D</span>' : (p.grupo !== 'PV1' ? '<span class="no3d">sem 3D</span>' : '')}</button>`;
+  }).join('') : `<div class="empty">Nenhuma peça ${filtro != null ? 'com status “' + ST[filtro].n + '”' : 'encontrada'}.</div>`;
+  $('items').querySelectorAll('.it').forEach((b) => b.onclick = () => {
+    const c = b.dataset.c; probAberto = false;
+    if (window.innerWidth < 760) $('list').hidden = true;
+    selecionar(c, true);
+  });
+}
+function abrirLista(){ $('list').hidden = false; $('b-list').classList.add('on'); renderLista(); }
+function fecharLista(){ $('list').hidden = true; $('b-list').classList.remove('on'); }
+$('b-list').onclick = () => ($('list').hidden ? abrirLista() : fecharLista());
+$('prog').onclick = abrirLista;
+$('list-x').onclick = fecharLista;
+$('q').addEventListener('input', renderLista);
+$('b-fit').onclick = () => { $('b-top').classList.remove('on'); enquadrar(false); };
+$('b-top').onclick = () => { const on = !$('b-top').classList.contains('on'); $('b-top').classList.toggle('on', on); enquadrar(on); };
+$('b-tags').onclick = () => { tagsOn = !tagsOn; ls.set(LS.tags, tagsOn); aplicarVis(); };
+$('b-ctx').onclick = () => { ctxOn = !ctxOn; ls.set(LS.ctx, ctxOn); aplicarVis(); };
+
+/* --- pranchas offline --- */
+$('b-offline').onclick = async () => {
+  const b = $('b-offline'), sp = b.querySelector('span'); b.disabled = true;
+  let ok = 0, falha = 0;
+  for (let i = 0; i < PECAS.length; i += 6) {
+    await Promise.all(PECAS.slice(i, i + 6).map((p) => fetch(prancha(p.code)).then((r) => (r.ok ? ok++ : falha++)).catch(() => falha++)));
+    sp.textContent = `Baixando pranchas… ${ok + falha}/${PECAS.length}`;
+  }
+  sp.textContent = falha ? `${ok} pranchas salvas, ${falha} falharam — tente de novo com internet` : `${ok} pranchas salvas neste aparelho`;
+  b.disabled = false;
+};
+
+function refresh(){ renderTopo(); renderLegenda(); pintar(); renderSheet(); renderLista(); }
+
+/* ================= Início ================= */
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('list').hidden) fecharLista(); else fecharSheet(); } });
+refresh();
+setSync(fila.length ? 'wait' : 'wait', 'Conectando…');
+puxar().then(() => { refresh(); enviar(); });
+setInterval(() => { if (document.visibilityState === 'visible') { if (fila.length) enviar(); else puxar().then(refresh); } }, 30000);
+addEventListener('online', () => enviar());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') puxar().then(() => { refresh(); enviar(); }); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.type === 'model-updated') toast('Modelo atualizado — recarregue para ver'); });
 </script>
 </body>
 </html>

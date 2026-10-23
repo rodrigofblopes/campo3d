@@ -1,7 +1,7 @@
 {
-  "name": "Elétrica 3D — Obra do Fábio",
-  "short_name": "Campo 3D",
-  "description": "Instalações elétricas em 3D por pavimento e ambiente, para uso em campo.",
+  "name": "Montagem de Painéis — Obra Amaggi",
+  "short_name": "Amaggi LSF",
+  "description": "Montagem dos painéis LSF da obra Amaggi: 3D, status e pranchas, para uso em campo.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,7 +10,17 @@
   "theme_color": "#ffffff",
   "lang": "pt-BR",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }

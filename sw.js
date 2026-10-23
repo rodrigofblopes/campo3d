@@ -2,16 +2,23 @@
    - Página (HTML): tenta a rede primeiro; sem sinal, usa a última cópia salva.
    - Modelos (.glb): usa a cópia salva na hora e confere a versão do servidor em
      segundo plano; se o arquivo mudou (nova exportação do Revit), avisa a página.
-   - Bibliotecas e fontes (CDN): cópia salva primeiro, as URLs têm versão fixa. */
-const APP = 'campo3d-app-v1', MODELS = 'campo3d-modelos', LIBS = 'campo3d-libs-v1';
+   - Pranchas (.pdf): cópia salva primeiro; sem cópia, baixa e guarda.
+   - Bibliotecas e fontes (CDN): cópia salva primeiro, as URLs têm versão fixa.
+   - /api/ nunca passa pelo cache (marcações sempre do servidor). */
+const APP = 'campo3d-app-v2', MODELS = 'campo3d-modelos', LIBS = 'campo3d-libs-v1', PDFS = 'campo3d-pranchas';
 
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (e) => e.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k === 'campo3d-app-v1') await caches.delete(k);
+  await self.clients.claim();
+})()));
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
+  if (url.origin === location.origin && url.pathname.endsWith('.pdf')) { e.respondWith(pdf(req)); return; }
   if (url.origin === location.origin && url.pathname.endsWith('.glb')) { e.respondWith(model(req)); return; }
   if (url.origin === location.origin && (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/')) { e.respondWith(page(req)); return; }
   if (/cdn\.jsdelivr\.net|fonts\.(googleapis|gstatic)\.com/.test(url.host)) { e.respondWith(lib(req)); return; }
@@ -27,6 +34,16 @@ async function page(req){
   } catch (err) {
     return (await cache.match(req, { ignoreSearch: true })) || (await cache.match('/')) || Response.error();
   }
+}
+
+async function pdf(req){
+  const cache = await caches.open(PDFS);
+  const key = req.url.split('?')[0];
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok) cache.put(key, res.clone());
+  return res;
 }
 
 async function lib(req){
