@@ -56,7 +56,7 @@
   #labels{position:absolute;inset:0;pointer-events:none;z-index:5;}
   .tag{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;line-height:1;padding:3px 5px 3px;border-radius:5px;background:rgba(255,255,255,.92);color:#0d1b2a;
     border:1px solid rgba(13,27,42,.18);border-left:3px solid var(--c,#b8c1cc);white-space:nowrap;pointer-events:auto;cursor:pointer;user-select:none;}
-  .tag.sel{background:#0d1b2a;color:#fff;border-color:#0d1b2a;border-left-color:var(--c);}
+  .tag.sel{background:#ff7a00;color:#fff;border-color:#c25400;font-size:12px;padding:4px 7px;z-index:2;}
   .tag.dim{opacity:.18;pointer-events:none;}
 
   #loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(244,246,248,.94);z-index:30;transition:opacity .3s;}
@@ -71,6 +71,10 @@
   .legend{position:absolute;right:12px;top:12px;z-index:15;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px;min-width:150px;}
   .legend .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--overlay-dim);padding:2px 6px 3px;background:none;border:none;cursor:pointer;width:100%;}
   .legend.min .chip{display:none;}
+  .modo{display:flex;align-items:center;gap:3px;background:rgba(255,255,255,.07);border-radius:9px;padding:3px;margin:0 2px 3px;}
+  .modo span{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--overlay-dim);padding:0 6px 0 4px;}
+  .modo button{flex:1;border:none;background:transparent;color:var(--overlay-ink);font-size:12px;font-weight:700;padding:6px 8px;border-radius:7px;cursor:pointer;}
+  .modo button.on{background:#fff;color:#0d1b2a;}
   .chip{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;border-radius:8px;padding:5px 7px;font-size:12px;font-weight:600;color:var(--overlay-ink);cursor:pointer;text-align:left;}
   .chip .sw{width:10px;height:10px;border-radius:3px;flex:none;}
   .chip .n{margin-left:auto;padding-left:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--overlay-dim);}
@@ -249,7 +253,7 @@ function normCode(s){
 }
 
 /* ================= Estado (servidor + fila deste aparelho) ================= */
-const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx' };
+const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor' };
 const ls = {
   get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -365,7 +369,12 @@ const sun2 = new THREE.DirectionalLight(0xffffff, 0.5); sun2.position.set(-30, 2
 
 // O GLB do Revit (e-verse) vem sem normais: flatShading calcula a luz por face no shader.
 const matSt = ST.map((s) => new THREE.MeshStandardMaterial({ color: s.c, roughness: .65, metalness: .05, side: THREE.DoubleSide, flatShading: true }));
-const matSel = ST.map((s) => new THREE.MeshStandardMaterial({ color: s.c, roughness: .5, metalness: .05, emissive: new THREE.Color('#ff9a1f'), emissiveIntensity: .55, side: THREE.DoubleSide, flatShading: true }));
+// Painel selecionado: laranja forte pulsando + contorno escuro.
+const matHi = new THREE.MeshStandardMaterial({ color: '#ff7a00', roughness: .45, metalness: .05, emissive: new THREE.Color('#ff6a00'), emissiveIntensity: .5, side: THREE.DoubleSide, flatShading: true });
+const matEdge = new THREE.LineBasicMaterial({ color: '#1a0d00', transparent: true, opacity: .9 });
+// Modo "Painel": cada painel com uma cor própria (vizinhos de número ficam com cores bem diferentes).
+const corPainel = (num) => { const c = new THREE.Color(); c.setHSL(((num * 0.381966) % 1), 0.52, 0.6, THREE.SRGBColorSpace); return c; };
+const matPainel = new Map();
 const matDim = new THREE.MeshStandardMaterial({ color: '#c9d1da', transparent: true, opacity: .14, depthWrite: false, side: THREE.DoubleSide, flatShading: true });
 const matCtx = new THREE.MeshStandardMaterial({ color: '#d6dbe1', transparent: true, opacity: .32, depthWrite: false, side: THREE.DoubleSide, flatShading: true });
 
@@ -373,7 +382,7 @@ const paineis = new Map();   // code -> {obj, meshes[], box, center, tag}
 const ctxObjs = [];
 let alvoPick = [];
 let sel = null, filtro = null;
-let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true);
+let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true), modoCor = ls.get(LS.cor, 'painel');
 let modelBox = new THREE.Box3();
 
 function resize(){
@@ -396,6 +405,9 @@ loader.load(MODELO, (gltf) => {
       const box = new THREE.Box3().setFromObject(o);
       const info = { code, obj: o, meshes, box, center: box.getCenter(new THREE.Vector3()), vol: p['Volume'] || '' };
       meshes.forEach((m) => { m.userData.code = code; });
+      const cp = corPainel(PECA[code].num);
+      matPainel.set(code, new THREE.MeshStandardMaterial({ color: cp, roughness: .65, metalness: .05, side: THREE.DoubleSide, flatShading: true }));
+      info.cor = '#' + cp.getHexString(THREE.SRGBColorSpace);
       const el = document.createElement('div'); el.className = 'tag'; el.textContent = code.replace(/^PV1-/, '');
       el.addEventListener('click', (e) => { e.stopPropagation(); selecionar(code, false); });
       const tag = new CSS2DObject(el); tag.position.set(info.center.x, box.max.y + 0.12, info.center.z); scene.add(tag);
@@ -426,13 +438,23 @@ function aplicarVis(){
   declutter();
 }
 
+let contorno = [];
+function marcarContorno(code){
+  contorno.forEach((l) => l.parent && l.parent.remove(l)); contorno = [];
+  const p = paineis.get(code); if (!p) return;
+  p.meshes.forEach((m) => {
+    if (!m.userData.edges) m.userData.edges = new THREE.EdgesGeometry(m.geometry, 35);
+    const l = new THREE.LineSegments(m.userData.edges, matEdge); l.renderOrder = 3; m.add(l); contorno.push(l);
+  });
+}
 function pintar(){
   paineis.forEach((p) => {
     const e = etapa(p.code);
-    const fora = filtro != null && e !== filtro;
-    const m = fora ? matDim : (sel === p.code ? matSel[e] : matSt[e]);
+    const fora = filtro != null && e !== filtro && sel !== p.code;
+    const base = modoCor === 'painel' ? matPainel.get(p.code) : matSt[e];
+    const m = sel === p.code ? matHi : (fora ? matDim : base);
     p.meshes.forEach((x) => { x.material = m; x.renderOrder = fora ? 1 : 0; });
-    p.el.style.setProperty('--c', ST[e].c);
+    p.el.style.setProperty('--c', modoCor === 'painel' ? p.cor : ST[e].c);
     p.el.classList.toggle('sel', sel === p.code);
     p.el.classList.toggle('dim', fora && sel !== p.code);
   });
@@ -502,6 +524,7 @@ function loop(now){
   requestAnimationFrame(loop);
   if (anim) anim(now);
   if (now - lastDeclutter > 120) { lastDeclutter = now; declutter(); }
+  if (sel) matHi.emissiveIntensity = 0.3 + 0.35 * (0.5 + 0.5 * Math.sin(now / 260));
   controls.update();
   renderer.render(scene, camera); labelR.render(scene, camera);
 }
@@ -525,17 +548,19 @@ function renderLegenda(){
   const lg = $('legend'); const min = lg.classList.contains('min');
   lg.classList.toggle('filtering', filtro != null);
   lg.innerHTML = `<button class="lh" id="lg-h"><span>PV1 · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
+    `<div class="modo"><span>Cores</span><button data-m="painel" class="${modoCor === 'painel' ? 'on' : ''}">Painel</button><button data-m="status" class="${modoCor === 'status' ? 'on' : ''}">Status</button></div>` +
     ST.map((s, i) => `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${s.c}"></span>${s.n}<span class="n">${c[i]}</span></button>`).join('');
   lg.querySelectorAll('.chip').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
   $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
+  lg.querySelectorAll('.modo button').forEach((b) => b.onclick = () => { modoCor = b.dataset.m; ls.set(LS.cor, modoCor); refresh(); });
 }
 
 /* --- folha do painel --- */
 function selecionar(code, voarAte = true){
-  sel = code; renderSheet(); pintar(); renderLista();
+  sel = code; marcarContorno(code); renderSheet(); pintar(); renderLista();
   if (voarAte && paineis.has(code)) focar(code);
 }
-function fecharSheet(){ sel = null; probAberto = false; $('sheet').hidden = true; pintar(); renderLista(); }
+function fecharSheet(){ sel = null; marcarContorno(null); probAberto = false; $('sheet').hidden = true; pintar(); renderLista(); }
 let probAberto = false;
 function vizinho(code, d){
   const i = PECAS.findIndex((p) => p.code === code), g = PECA[code].grupo;
