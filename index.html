@@ -163,6 +163,7 @@
   .pv-ib{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:none;border:1px solid var(--border);background:var(--panel-2);border-radius:10px;color:var(--text);cursor:pointer;text-decoration:none;font-size:18px;font-weight:700;}
   .pv-body{flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;}
   .pv-pages{width:max-content;min-width:100%;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:10px;transform-origin:0 0;}
+  .pv-pages img{display:block;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35);max-width:none;user-select:none;-webkit-user-drag:none;}
   .pv-pages canvas{display:block;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35);}
   .pv-msg{color:#fff;text-align:center;padding:40px 20px;font-size:14px;line-height:1.5;}
   .pv-msg a{color:#ffd6a3;font-weight:700;}
@@ -198,6 +199,8 @@
       <button class="ib" id="b-top" title="Ver em planta"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 12h9v8M13 4v4"/></svg></button>
       <button class="ib" id="b-tags" title="Números dos painéis"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 4l-2 16M16 4l-2 16"/></svg></button>
       <button class="ib" id="b-ctx" title="Paredes e louças de referência"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/></svg></button>
+      <hr>
+      <button class="ib" id="b-planta" title="Planta baixa do escritório" aria-label="Planta baixa do escritório"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 12h6M9 5v4M9 15v4M14 5v9h7M14 17v2"/></svg></button>
     </div>
 
     <div class="legend" id="legend"></div>
@@ -706,6 +709,7 @@ $('b-offline').onclick = async () => {
   }
   sp.textContent = falha ? `${ok} pranchas salvas, ${falha} falharam — tente de novo com internet` : `${ok} pranchas salvas neste aparelho`;
   b.disabled = false;
+  fetch(PLANTA).catch(() => {});
   pdfLib().catch(() => {}); // guarda também o leitor de PDF para abrir sem internet
 };
 
@@ -744,8 +748,28 @@ async function abrirPrancha(code){
     $('pv-pages').innerHTML = `<div class="pv-msg">Não foi possível mostrar a prancha aqui${navigator.onLine ? '' : ' (sem internet e ela ainda não foi baixada neste aparelho)'}.<br><br><a href="${url}" target="_blank" rel="noopener">Abrir no leitor de PDF</a></div>`;
   }
 }
+// planta baixa do escritório: mesma tela, com zoom e "Voltar ao 3D"
+const PLANTA = 'planta/pb-amaggi.jpg';
+function abrirImagem(url, titulo){
+  pv.code = null; pv.zoom = 1; pv.doc?.destroy(); pv.doc = null; pv.ws = []; const tk = ++pv.token;
+  $('pv-title').textContent = titulo; $('pv-ext').href = url;
+  $('pv-pages').innerHTML = '<div class="pv-msg">Abrindo…</div>';
+  $('pdfv').hidden = false;
+  if (!pv.hist) { history.pushState({ prancha: titulo }, ''); pv.hist = true; }
+  const img = new Image(); img.alt = titulo; img.draggable = false;
+  img.onload = () => {
+    if (tk !== pv.token) return;
+    pv.ws = [{ width: img.naturalWidth, height: img.naturalHeight }];
+    $('pv-pages').innerHTML = ''; $('pv-pages').appendChild(img);
+    $('pv-body').scrollTo(0, 0); tamanhoCss();
+  };
+  img.onerror = () => { if (tk === pv.token) $('pv-pages').innerHTML = '<div class="pv-msg">Não foi possível abrir a planta. Verifique a internet.</div>'; };
+  img.src = url;
+}
+$('b-planta').onclick = () => abrirImagem(PLANTA, 'Planta baixa');
 function fecharPrancha(viaHist){
   if ($('pdfv').hidden) return;
+  pv.ws = [];
   pv.token++; $('pdfv').hidden = true; $('pv-pages').innerHTML = ''; pv.doc?.destroy(); pv.doc = null;
   if (pv.hist) { pv.hist = false; if (!viaHist) history.back(); }
 }
@@ -755,7 +779,7 @@ function escalas(){
   return pv.ws.map((v) => (w / v.width) * pv.zoom);
 }
 function tamanhoCss(){
-  const cs = $('pv-pages').querySelectorAll('canvas'), es = escalas();
+  const cs = $('pv-pages').querySelectorAll('canvas, img'), es = escalas();
   cs.forEach((c, i) => { c.style.width = Math.round(pv.ws[i].width * es[i]) + 'px'; c.style.height = Math.round(pv.ws[i].height * es[i]) + 'px'; });
 }
 let renderTimer = 0;
@@ -789,13 +813,13 @@ $('pv-back').onclick = () => fecharPrancha(false);
 $('pv-mais').onclick = () => zoomPara(pv.zoom * 1.5);
 $('pv-menos').onclick = () => zoomPara(pv.zoom / 1.5);
 addEventListener('popstate', () => { if (pv.hist) { pv.hist = false; fecharPrancha(true); } });
-addEventListener('resize', () => { if (!$('pdfv').hidden && pv.doc) { clearTimeout(renderTimer); pv.token++; renderTimer = setTimeout(desenharPrancha, 200); } });
+addEventListener('resize', () => { if (!$('pdfv').hidden && !pv.doc && pv.ws.length) tamanhoCss(); else if (!$('pdfv').hidden && pv.doc) { clearTimeout(renderTimer); pv.token++; renderTimer = setTimeout(desenharPrancha, 200); } });
 // pinça com dois dedos para ampliar
 (() => {
   const body = $('pv-body'), pages = $('pv-pages'); let g = null;
   const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   body.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 2 || !pv.doc) return;
+    if (e.touches.length !== 2 || !pv.ws.length) return;
     const r = body.getBoundingClientRect();
     g = { d0: dist(e.touches), mx: (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left, my: (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top, k: 1 };
     pages.style.transformOrigin = `${body.scrollLeft + g.mx}px ${body.scrollTop + g.my}px`;
