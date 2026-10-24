@@ -47,7 +47,13 @@
   .who span.n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--s0);}
   .dot.on{background:var(--s4);} .dot.wait{background:#f0a020;} .dot.off{background:var(--s5);}
-  @media (max-width:560px){ .topbar{flex-wrap:wrap;padding-bottom:8px;} .prog{order:3;width:100%;} .prog-track{flex:1;width:auto;} .who{max-width:140px;} .brand h1{font-size:15px;} .legend{min-width:0;} }
+  .busca{display:flex;align-items:center;gap:6px;flex:0 1 230px;min-width:0;border:1px solid var(--border);background:var(--panel-2);border-radius:10px;padding:0 4px 0 10px;}
+  .busca:focus-within{border-color:var(--accent);}
+  .busca svg{width:16px;height:16px;stroke:var(--text-dim);fill:none;stroke-width:2;flex:none;}
+  .busca input{border:none;background:transparent;flex:1;min-width:0;padding:9px 0;outline:none;font-size:16px;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;}
+  .busca input::placeholder{text-transform:none;font-family:"Public Sans",sans-serif;font-size:13px;}
+  .busca button{border:none;background:var(--text);color:#fff;border-radius:7px;padding:6px 10px;font-weight:700;font-size:12.5px;cursor:pointer;flex:none;}
+  @media (max-width:560px){ .topbar{flex-wrap:wrap;padding-bottom:8px;} .busca{order:2;flex:1 1 100%;} .prog{order:3;width:100%;} .prog-track{flex:1;width:auto;} .who{max-width:140px;} .brand h1{font-size:15px;} .legend{min-width:0;} }
 
   /* ---- Palco 3D ---- */
   .stage{position:relative;flex:1;min-height:0;background:var(--viewport);overflow:hidden;}
@@ -148,6 +154,19 @@
   #namedlg h3{margin:0;font-family:"Archivo",sans-serif;font-size:17px;}
   #namedlg p{margin:0;font-size:13px;color:var(--text-dim);line-height:1.45;}
   #namedlg input{border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-size:16px;}
+  /* ---- Visualizador de prancha ---- */
+  #pdfv{position:fixed;inset:0;z-index:55;background:#3a4452;display:flex;flex-direction:column;}
+  .pv-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--panel);border-bottom:1px solid var(--border);}
+  .pv-back{display:flex;align-items:center;gap:6px;border:none;background:var(--text);color:#fff;border-radius:10px;padding:10px 14px 10px 10px;font-weight:700;font-size:14px;cursor:pointer;flex:none;}
+  .pv-back svg,.pv-ib svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .pv-title{flex:1;min-width:0;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pv-ib{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:none;border:1px solid var(--border);background:var(--panel-2);border-radius:10px;color:var(--text);cursor:pointer;text-decoration:none;font-size:18px;font-weight:700;}
+  .pv-body{flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;}
+  .pv-pages{width:max-content;min-width:100%;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:10px;transform-origin:0 0;}
+  .pv-pages canvas{display:block;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35);}
+  .pv-msg{color:#fff;text-align:center;padding:40px 20px;font-size:14px;line-height:1.5;}
+  .pv-msg a{color:#ffd6a3;font-weight:700;}
+  @media (max-width:420px){ .pv-back span{display:none;} .pv-back{padding:10px;} }
   @media (prefers-reduced-motion:reduce){ *{transition:none!important;} }
 </style>
 </head>
@@ -155,6 +174,12 @@
 <div class="app">
   <header class="topbar">
     <div class="brand"><span class="mark">Obra Amaggi · LSF</span><h1>Montagem de painéis</h1></div>
+    <form class="busca" id="busca" role="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+      <input id="busca-in" type="search" list="busca-codes" placeholder="Digite o painel: 38, PV2-07…" autocomplete="off" enterkeyhint="search" aria-label="Número do painel">
+      <button type="submit">Ir</button>
+      <datalist id="busca-codes"></datalist>
+    </form>
     <button class="prog" id="prog" title="Abrir a lista de peças">
       <span class="prog-track" id="prog-track"></span>
       <span class="prog-text mono" id="prog-text"><b>0</b>/0 com esquadro ok</span>
@@ -194,6 +219,17 @@
       </div>
     </aside>
   </main>
+</div>
+
+<div id="pdfv" hidden role="dialog" aria-label="Prancha de montagem">
+  <div class="pv-top">
+    <button class="pv-back" id="pv-back" title="Voltar ao 3D"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Voltar ao 3D</button>
+    <div class="pv-title" id="pv-title"></div>
+    <button class="pv-ib" id="pv-menos" title="Diminuir" aria-label="Diminuir">−</button>
+    <button class="pv-ib" id="pv-mais" title="Aumentar" aria-label="Aumentar">+</button>
+    <a class="pv-ib" id="pv-ext" target="_blank" rel="noopener" title="Abrir no leitor de PDF do aparelho" aria-label="Abrir fora do app"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+  </div>
+  <div class="pv-body" id="pv-body"><div class="pv-pages" id="pv-pages"></div></div>
 </div>
 
 <div id="namedlg" hidden>
@@ -583,16 +619,17 @@ function renderSheet(){
     ${probAberto ? `<div class="prob"><textarea id="prob-t" placeholder="O que está errado? Ex.: montante fora de prumo, furo faltando…">${e === 5 ? esc(s?.nota || '') : ''}</textarea>
       <div class="row2"><button class="btn" id="prob-c">Cancelar</button><button class="btn bad on" id="prob-ok">Marcar com problema</button></div></div>` : ''}
     <div class="row2">
-      <a class="btn primary" href="${prancha(code)}" target="_blank" rel="noopener">${ICON_PDF}Abrir prancha</a>
+      <button class="btn primary" id="sh-pdf">${ICON_PDF}Abrir prancha</button>
       ${p ? `<button class="btn" id="sh-focus" style="flex:none;padding:10px 12px" title="Centralizar no 3D">${ICON_ALVO}</button>` : ''}
       ${probAberto ? '' : `<button class="btn bad ${e === 5 ? 'on' : ''}" id="sh-prob" style="flex:none;padding:10px 12px">${e === 5 ? 'Com problema' : 'Problema'}</button>`}
     </div>
-    <div class="facts">${p && p.vol ? `<span>Volume <b>${esc(p.vol)}</b></span>` : ''}${e > 0 ? `<button class="btn ghost" id="sh-zero">Desfazer: voltar a não iniciado</button>` : ''}</div>`;
+    <div class="facts">${e > 0 ? `<button class="btn ghost" id="sh-zero">Desfazer: voltar a não iniciado</button>` : ''}</div>`;
   sh.hidden = false;
   $('sh-x').onclick = fecharSheet;
   $('sh-prev').onclick = () => { probAberto = false; selecionar(vizinho(code, -1)); };
   $('sh-next').onclick = () => { probAberto = false; selecionar(vizinho(code, 1)); };
   sh.querySelectorAll('.step').forEach((b) => b.onclick = () => { probAberto = false; marcar(code, +b.dataset.e); });
+  $('sh-pdf').onclick = () => abrirPrancha(code);
   $('sh-focus') && ($('sh-focus').onclick = () => focar(code));
   $('sh-prob') && ($('sh-prob').onclick = () => { probAberto = true; renderSheet(); setTimeout(() => $('prob-t')?.focus(), 30); });
   $('prob-c') && ($('prob-c').onclick = () => { probAberto = false; renderSheet(); });
@@ -641,6 +678,24 @@ $('b-top').onclick = () => { const on = !$('b-top').classList.contains('on'); $(
 $('b-tags').onclick = () => { tagsOn = !tagsOn; ls.set(LS.tags, tagsOn); aplicarVis(); };
 $('b-ctx').onclick = () => { ctxOn = !ctxOn; ls.set(LS.ctx, ctxOn); aplicarVis(); };
 
+/* --- busca rápida no topo: digita o painel e vai direto para ele --- */
+$('busca-codes').innerHTML = PECAS.map((p) => `<option value="${p.code}">`).join('');
+$('busca').onsubmit = (ev) => {
+  ev.preventDefault();
+  const inp = $('busca-in'), q = inp.value.trim().toUpperCase(); if (!q) return;
+  let code = normCode(q);
+  if (!code && /^\d+$/.test(q)) code = `PV1-${pad(+q)}`; // só o número: painel do PV1
+  if (code && PECA[code]) {
+    inp.value = ''; inp.blur(); probAberto = false;
+    if (window.innerWidth < 760) fecharLista();
+    selecionar(code, true);
+    if (!paineis.has(code)) toast(`${code} não tem 3D — use a prancha`);
+  } else {
+    // vários resultados ou nada exato: mostra a lista filtrada
+    $('q').value = q; abrirLista(); inp.blur();
+  }
+};
+
 /* --- pranchas offline --- */
 $('b-offline').onclick = async () => {
   const b = $('b-offline'), sp = b.querySelector('span'); b.disabled = true;
@@ -651,12 +706,122 @@ $('b-offline').onclick = async () => {
   }
   sp.textContent = falha ? `${ok} pranchas salvas, ${falha} falharam — tente de novo com internet` : `${ok} pranchas salvas neste aparelho`;
   b.disabled = false;
+  pdfLib().catch(() => {}); // guarda também o leitor de PDF para abrir sem internet
 };
+
+/* --- visualizador de prancha (dentro do app, com "Voltar ao 3D") --- */
+const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/';
+let pdfjsMod = null;
+async function pdfLib(){
+  if (!pdfjsMod) {
+    const m = await import(PDFJS + 'build/pdf.min.mjs');
+    m.GlobalWorkerOptions.workerSrc = PDFJS + 'build/pdf.worker.min.mjs';
+    pdfjsMod = m;
+  }
+  return pdfjsMod;
+}
+const pv = { code: null, doc: null, zoom: 1, token: 0, hist: false, ws: [] };
+async function abrirPrancha(code){
+  const url = prancha(code);
+  pv.code = code; pv.zoom = 1; pv.doc = null; const tk = ++pv.token;
+  $('pv-title').textContent = code;
+  $('pv-ext').href = url;
+  $('pv-pages').innerHTML = '<div class="pv-msg">Abrindo prancha…</div>';
+  $('pdfv').hidden = false;
+  if (!pv.hist) { history.pushState({ prancha: code }, ''); pv.hist = true; } // botão voltar do celular fecha a prancha
+  try {
+    const lib = await pdfLib();
+    const doc = await lib.getDocument({ url, cMapUrl: PDFJS + 'cmaps/', cMapPacked: true, standardFontDataUrl: PDFJS + 'standard_fonts/' }).promise;
+    if (tk !== pv.token) return;
+    pv.doc = doc; pv.ws = [];
+    for (let i = 1; i <= doc.numPages; i++) pv.ws.push((await doc.getPage(i)).getViewport({ scale: 1 }));
+    $('pv-pages').innerHTML = '';
+    for (let i = 0; i < doc.numPages; i++) $('pv-pages').appendChild(document.createElement('canvas'));
+    $('pv-body').scrollTo(0, 0);
+    desenharPrancha();
+  } catch (err) {
+    if (tk !== pv.token) return;
+    $('pv-pages').innerHTML = `<div class="pv-msg">Não foi possível mostrar a prancha aqui${navigator.onLine ? '' : ' (sem internet e ela ainda não foi baixada neste aparelho)'}.<br><br><a href="${url}" target="_blank" rel="noopener">Abrir no leitor de PDF</a></div>`;
+  }
+}
+function fecharPrancha(viaHist){
+  if ($('pdfv').hidden) return;
+  pv.token++; $('pdfv').hidden = true; $('pv-pages').innerHTML = ''; pv.doc?.destroy(); pv.doc = null;
+  if (pv.hist) { pv.hist = false; if (!viaHist) history.back(); }
+}
+// tamanho na tela de cada página: largura da tela × zoom
+function escalas(){
+  const w = $('pv-body').clientWidth - 20;
+  return pv.ws.map((v) => (w / v.width) * pv.zoom);
+}
+function tamanhoCss(){
+  const cs = $('pv-pages').querySelectorAll('canvas'), es = escalas();
+  cs.forEach((c, i) => { c.style.width = Math.round(pv.ws[i].width * es[i]) + 'px'; c.style.height = Math.round(pv.ws[i].height * es[i]) + 'px'; });
+}
+let renderTimer = 0;
+async function desenharPrancha(){
+  if (!pv.doc) return;
+  tamanhoCss();
+  const tk = pv.token, cs = $('pv-pages').querySelectorAll('canvas'), es = escalas();
+  for (let i = 0; i < cs.length; i++) {
+    const page = await pv.doc.getPage(i + 1); if (tk !== pv.token) return;
+    // nitidez da tela, limitada para não estourar a memória do celular
+    let px = es[i] * Math.min(devicePixelRatio || 1, 3);
+    const area = pv.ws[i].width * pv.ws[i].height * px * px, MAX = 14e6;
+    if (area > MAX) px *= Math.sqrt(MAX / area);
+    const vp = page.getViewport({ scale: px }), off = document.createElement('canvas');
+    off.width = Math.floor(vp.width); off.height = Math.floor(vp.height);
+    await page.render({ canvasContext: off.getContext('2d'), viewport: vp }).promise;
+    if (tk !== pv.token) return;
+    const c = cs[i]; c.width = off.width; c.height = off.height; c.getContext('2d').drawImage(off, 0, 0);
+  }
+}
+function zoomPara(z, mx, my){
+  const body = $('pv-body'), r = body.getBoundingClientRect();
+  if (mx == null) { mx = r.width / 2; my = r.height / 2; }
+  z = Math.min(8, Math.max(1, z)); const k = z / pv.zoom; if (k === 1) return;
+  const px = body.scrollLeft + mx, py = body.scrollTop + my;
+  pv.zoom = z; tamanhoCss();
+  body.scrollLeft = px * k - mx; body.scrollTop = py * k - my;
+  clearTimeout(renderTimer); pv.token++; renderTimer = setTimeout(desenharPrancha, 120);
+}
+$('pv-back').onclick = () => fecharPrancha(false);
+$('pv-mais').onclick = () => zoomPara(pv.zoom * 1.5);
+$('pv-menos').onclick = () => zoomPara(pv.zoom / 1.5);
+addEventListener('popstate', () => { if (pv.hist) { pv.hist = false; fecharPrancha(true); } });
+addEventListener('resize', () => { if (!$('pdfv').hidden && pv.doc) { clearTimeout(renderTimer); pv.token++; renderTimer = setTimeout(desenharPrancha, 200); } });
+// pinça com dois dedos para ampliar
+(() => {
+  const body = $('pv-body'), pages = $('pv-pages'); let g = null;
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  body.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2 || !pv.doc) return;
+    const r = body.getBoundingClientRect();
+    g = { d0: dist(e.touches), mx: (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left, my: (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top, k: 1 };
+    pages.style.transformOrigin = `${body.scrollLeft + g.mx}px ${body.scrollTop + g.my}px`;
+  }, { passive: true });
+  body.addEventListener('touchmove', (e) => {
+    if (!g || e.touches.length !== 2) return;
+    e.preventDefault();
+    g.k = Math.min(8 / pv.zoom, Math.max(1 / pv.zoom, dist(e.touches) / g.d0));
+    pages.style.transform = `scale(${g.k})`;
+  }, { passive: false });
+  const fim = () => { if (!g) return; const { k, mx, my } = g; g = null; pages.style.transform = ''; zoomPara(pv.zoom * k, mx, my); };
+  body.addEventListener('touchend', fim); body.addEventListener('touchcancel', fim);
+  // dois toques rápidos: amplia ali / volta ao tamanho da tela
+  let ult = 0;
+  body.addEventListener('touchend', (e) => {
+    if (e.touches.length || e.changedTouches.length !== 1) return;
+    const now = Date.now(), t = e.changedTouches[0], r = body.getBoundingClientRect();
+    if (now - ult < 300) { ult = 0; zoomPara(pv.zoom > 1.2 ? 1 : 2.5, t.clientX - r.left, t.clientY - r.top); } else ult = now;
+  });
+  body.addEventListener('dblclick', (e) => { const r = body.getBoundingClientRect(); zoomPara(pv.zoom > 1.2 ? 1 : 2.5, e.clientX - r.left, e.clientY - r.top); });
+})();
 
 function refresh(){ renderTopo(); renderLegenda(); pintar(); renderSheet(); renderLista(); }
 
 /* ================= Início ================= */
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('list').hidden) fecharLista(); else fecharSheet(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('pdfv').hidden) fecharPrancha(false); else if (!$('list').hidden) fecharLista(); else fecharSheet(); } });
 refresh();
 setSync(fila.length ? 'wait' : 'wait', 'Conectando…');
 puxar().then(() => { refresh(); enviar(); });
