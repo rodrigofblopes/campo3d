@@ -109,7 +109,7 @@
   .cur .sw{width:12px;height:12px;border-radius:4px;flex:none;}
   .cur b{font-size:14px;}
   .cur .meta{margin-left:auto;font-size:11px;color:var(--text-dim);text-align:right;}
-  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
   .step{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:9px 4px 8px;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--text);min-height:58px;justify-content:center;text-align:center;line-height:1.15;}
   .step .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;}
   .step.done .ck{background:var(--c);border-color:var(--c);}
@@ -186,7 +186,7 @@
     </form>
     <button class="prog" id="prog" title="Abrir a lista de peças">
       <span class="prog-track" id="prog-track"></span>
-      <span class="prog-text mono" id="prog-text"><b>0</b>/0 com esquadro ok</span>
+      <span class="prog-text mono" id="prog-text"><b>0</b>/0 conferidas</span>
     </button>
     <button class="who" id="who" title="Seu nome e sincronização"><span class="dot" id="sync-dot"></span><span class="n" id="who-name">Identificar</span></button>
   </header>
@@ -272,8 +272,8 @@ const ST = [
   { n:'Não iniciado', c:'#b8c1cc' },
   { n:'Montado',      c:'#93c6ee' },
   { n:'Levantado',    c:'#4b8fdb' },
-  { n:'Prumo ok',     c:'#2257a8' },
-  { n:'Esquadro ok',  c:'#22a05a' },
+  { n:'Prumo ok',     c:'#2257a8', oculto:true },  // antigo: virou parte da etapa 4; marcações antigas contam como Levantado
+  { n:'Esquadro, prumo e parafusos ok', curto:'Esquadro<br>Prumo<br>Parafusos ok', c:'#22a05a' },
   { n:'Com problema', c:'#e04646' },
 ];
 // Peças do projeto (uma prancha por peça em pranchas/). PV1, PV2 e tesouras têm 3D.
@@ -327,6 +327,7 @@ let syncState = 'wait', syncMsg = 'Conectando…', ultimoSync = null;
 function estado(code){
   let s = servidor[code] || null;
   for (const m of fila) if (m.elemento === code && (!s || m.em >= (s.em || ''))) s = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, pend: true };
+  if (s && s.etapa === 3) s = { ...s, etapa: 2 };  // "Prumo ok" antigo: a conferência agora é uma só (etapa 4)
   return s;
 }
 const etapa = (code) => (estado(code)?.etapa ?? 0);
@@ -626,8 +627,8 @@ function contagem(lista){
 }
 function renderTopo(){
   const c = contagem(PECAS), tot = PECAS.length;
-  $('prog-text').innerHTML = `<b>${c[4]}</b>/${tot} com esquadro ok` + (c[5] ? ` · <span style="color:#c43030;font-weight:700">${c[5]} c/ problema</span>` : '');
-  $('prog-track').innerHTML = [4,3,2,1,5].map((i) => c[i] ? `<i style="width:${c[i] / tot * 100}%;background:${ST[i].c}"></i>` : '').join('');
+  $('prog-text').innerHTML = `<b>${c[4]}</b>/${tot} conferidas` + (c[5] ? ` · <span style="color:#c43030;font-weight:700">${c[5]} c/ problema</span>` : '');
+  $('prog-track').innerHTML = [4,2,1,5].map((i) => c[i] ? `<i style="width:${c[i] / tot * 100}%;background:${ST[i].c}"></i>` : '').join('');
 }
 function renderLegenda(){
   const pv = PECAS.filter((p) => paineis.has(p.code) && modoCamada(p.grupo) === 'on'), c = contagem(pv);
@@ -636,7 +637,7 @@ function renderLegenda(){
   const nomeCam = CAMADAS.find((x) => x[0] === camada)[1];
   lg.innerHTML = `<div class="seg" role="group" aria-label="Camadas">${CAMADAS.map(([id, n]) => `<button class="${camada === id ? 'on' : ''}" data-cam="${id}">${n}</button>`).join('')}</div>` +
     `<button class="lh" id="lg-h"><span>${camada === 'tudo' ? 'Tudo' : nomeCam} · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
-    ST.map((s, i) => `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${i === 0 ? COR_PROJETO : s.c}"></span>${i === 0 ? 'Não iniciado (cor do projeto)' : s.n}<span class="n">${c[i]}</span></button>`).join('');
+    ST.map((s, i) => s.oculto ? '' : `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${i === 0 ? COR_PROJETO : s.c}"></span>${i === 0 ? 'Não iniciado (cor do projeto)' : s.n}<span class="n">${c[i]}</span></button>`).join('');
   lg.querySelectorAll('.chip').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
   lg.querySelectorAll('.seg button').forEach((b) => b.onclick = () => trocarCamada(b.dataset.cam));
   $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
@@ -677,7 +678,7 @@ function renderSheet(){
     </div>
     <div class="cur"><span class="sw" style="background:${ST[e].c}"></span><b>${ST[e].n}</b><span class="meta">${meta}</span></div>
     ${e === 5 && s?.nota ? `<div class="note"><b>Problema:</b> ${esc(s.nota)}</div>` : ''}
-    <div class="steps">${[1,2,3,4].map((i) => `<button class="step ${e !== 5 && e >= i ? 'done' : ''} ${e === i ? 'now' : ''}" data-e="${i}" style="--c:${ST[i].c}"><span class="ck">${e !== 5 && e >= i ? '✓' : ''}</span>${ST[i].n}</button>`).join('')}</div>
+    <div class="steps">${[1,2,4].map((i) => `<button class="step ${e !== 5 && e >= i ? 'done' : ''} ${e === i ? 'now' : ''}" data-e="${i}" style="--c:${ST[i].c}"><span class="ck">${e !== 5 && e >= i ? '✓' : ''}</span>${ST[i].curto || ST[i].n}</button>`).join('')}</div>
     ${probAberto ? `<div class="prob"><textarea id="prob-t" placeholder="O que está errado? Ex.: montante fora de prumo, furo faltando…">${e === 5 ? esc(s?.nota || '') : ''}</textarea>
       <div class="row2"><button class="btn" id="prob-c">Cancelar</button><button class="btn bad on" id="prob-ok">Marcar com problema</button></div></div>` : ''}
     <div class="row2">
