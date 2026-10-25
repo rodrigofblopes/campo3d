@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Montagem de Painéis — Obra Amaggi</title>
-<meta name="description" content="Acompanhamento da montagem dos painéis LSF da obra Amaggi: 3D dos painéis, status de cada um e prancha de montagem.">
+<meta name="description" content="Acompanhamento da montagem LSF da obra Amaggi: 3D dos painéis PV1, treliças PV2 e tesouras, status de cada um e prancha de montagem.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="/campo3d.webmanifest">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -82,6 +82,9 @@
   .chip .n{margin-left:auto;padding-left:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--overlay-dim);}
   .chip.on{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff;}
   .legend.filtering .chip:not(.on){opacity:.5;}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:1px 1px 4px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:2px;}
+  .seg button{border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--overlay-ink);border-radius:7px;padding:6px 6px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
 
   .toolbar{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:5px;z-index:15;}
   .ib{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--overlay-ink);cursor:pointer;}
@@ -177,7 +180,7 @@
     <div class="brand"><span class="mark">Obra Amaggi · LSF</span><h1>Montagem de painéis</h1></div>
     <form class="busca" id="busca" role="search">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
-      <input id="busca-in" type="search" list="busca-codes" placeholder="Digite o painel: 38, PV2-07…" autocomplete="off" enterkeyhint="search" aria-label="Número do painel">
+      <input id="busca-in" type="search" list="busca-codes" placeholder="Digite a peça: 38, PV2-07, TS01-5…" autocomplete="off" enterkeyhint="search" aria-label="Número do painel">
       <button type="submit">Ir</button>
       <datalist id="busca-codes"></datalist>
     </form>
@@ -206,14 +209,14 @@
     <div class="legend" id="legend"></div>
     <script>if (innerWidth < 560) document.getElementById('legend').classList.add('min');</script>
 
-    <div id="loading"><div class="lbl" id="load-lbl">Carregando painéis do PV1</div><div class="pct" id="load-pct">0%</div><div class="bar"><i id="load-bar"></i></div><div id="load-err" hidden></div></div>
+    <div id="loading"><div class="lbl" id="load-lbl">Carregando o 3D da obra</div><div class="pct" id="load-pct">0%</div><div class="bar"><i id="load-bar"></i></div><div id="load-err" hidden></div></div>
     <div id="toast"></div>
 
     <section id="sheet" hidden aria-live="polite"></section>
 
     <aside id="list" hidden>
       <div class="lh2"><h3>Peças</h3><button class="x" id="list-x" aria-label="Fechar lista">×</button></div>
-      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="q" type="search" placeholder="Buscar: 23, PV2-07, TR-3…" inputmode="search" autocomplete="off"></label>
+      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="q" type="search" placeholder="Buscar: 23, PV2-07, TS01-5, TR-3…" inputmode="search" autocomplete="off"></label>
       <div class="groups" id="groups"></div>
       <div class="items" id="items"></div>
       <div class="lfoot">
@@ -259,7 +262,12 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 
 /* ================= Dados da obra ================= */
 const OBRA = 'amaggi';
-const MODELO = 'modelos/paineis-pv1-r2.glb'; // r2: sem os planos das aberturas
+// Um GLB por camada da obra. Ao trocar um modelo, mudar o nome (r2, r3…) para o celular não usar a cópia guardada.
+const MODELOS = [
+  { url:'modelos/paineis-pv1-r2.glb',  grupo:'PV1' },  // r2: sem os planos das aberturas
+  { url:'modelos/trelicas-pv2-r1.glb', grupo:'PV2' },  // "3D Treliças.glb": PV2-01 a 58 pela Marca
+  { url:'modelos/tesouras-r1.glb',     grupo:'TS'  },  // "3D Tesouras.glb": barras agrupadas em 24 tesouras
+];
 const ST = [
   { n:'Não iniciado', c:'#b8c1cc' },
   { n:'Montado',      c:'#93c6ee' },
@@ -268,27 +276,45 @@ const ST = [
   { n:'Esquadro ok',  c:'#22a05a' },
   { n:'Com problema', c:'#e04646' },
 ];
-// Peças do projeto (uma prancha por peça em pranchas/). Só o PV1 tem 3D por enquanto.
+// Peças do projeto (uma prancha por peça em pranchas/). PV1, PV2 e tesouras têm 3D.
 const GRUPOS = [
-  { id:'PV1', nome:'Painéis PV1', n:100 },
-  { id:'PV2', nome:'Painéis PV2', n:58 },
-  { id:'TR',  nome:'Treliças',    n:12 },
-  { id:'TS',  nome:'Tesouras',    n:3 },
-  { id:'LJ1', nome:'Laje',        n:1 },
+  { id:'PV1', nome:'Painéis PV1',  n:100, tres:true },
+  { id:'PV2', nome:'Treliças PV2', n:58,  tres:true },
+  { id:'TS',  nome:'Tesouras',             tres:true },
+  { id:'TR',  nome:'Peças TR',     n:12 },
+  { id:'LJ1', nome:'Laje',         n:1 },
 ];
 const pad = (n) => String(n).padStart(2, '0');
+// Tesouras: 24 na obra, de 3 tipos (prancha M05). Código = tipo + nº dentro do tipo, contado da esquerda
+// para a direita na locação. Ordem da lista = posição na obra: 13 TS 01, 3 TS 02, 3 TS 03, 5 TS 01.
+const TESOURAS = [
+  ...Array.from({ length: 13 }, (_, i) => `TS01-${pad(i + 1)}`),
+  'TS02-01', 'TS02-02', 'TS02-03', 'TS03-01', 'TS03-02', 'TS03-03',
+  ...Array.from({ length: 5 }, (_, i) => `TS01-${pad(i + 14)}`),
+];
 const PECAS = [];
-GRUPOS.forEach((g) => { for (let i = 1; i <= g.n; i++) PECAS.push({ code: `${g.id}-${pad(i)}`, grupo: g.id, num: i }); });
+GRUPOS.forEach((g) => {
+  if (g.id === 'TS') TESOURAS.forEach((code, i) => PECAS.push({ code, grupo: 'TS', num: i + 1, tipo: `TS ${code.slice(2, 4)}`, pdf: `pranchas/TS-${code.slice(2, 4)}.pdf` }));
+  else for (let i = 1; i <= g.n; i++) { const code = `${g.id}-${pad(i)}`; PECAS.push({ code, grupo: g.id, num: i, pdf: `pranchas/${code}.pdf` }); }
+});
 const PECA = Object.fromEntries(PECAS.map((p) => [p.code, p]));
-const prancha = (code) => `pranchas/${code}.pdf`;
-// "PV1 - 23" / "PV1-23" / "pv1 23" -> "PV1-23"
+const prancha = (code) => PECA[code]?.pdf || `pranchas/${code}.pdf`;
+// "PV1 - 23" / "PV1-23" / "pv1 23" -> "PV1-23";  "TS01-7" / "ts 1 7" / "TS-01/07" -> "TS01-07"
 function normCode(s){
-  const m = String(s || '').toUpperCase().match(/(PV1|PV2|TR|TS|LJ1)\s*[-_ ]?\s*0*(\d+)/);
+  const u = String(s || '').toUpperCase();
+  let m = u.match(/TS\s*-?\s*0*([1-3])\s*[-_.\/ ]\s*0*(\d{1,2})(?!\d)/);
+  if (m) return `TS0${m[1]}-${pad(+m[2])}`;
+  m = u.match(/(PV1|PV2|TR|LJ1)\s*[-_ ]?\s*0*(\d+)/);
   return m ? `${m[1]}-${pad(+m[2])}` : null;
 }
+const rotulo = (code) => code.replace(/^PV1-/, '');
+// Camadas: ver tudo, ou só uma. As de cima da escolhida somem (o telhado não tapa o PV1);
+// as outras ficam apagadas, só de referência, e não respondem ao toque.
+const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'PV1'], ['PV2', 'Treliças'], ['TS', 'Tesouras']];
+const NIVEL = { PV1: 0, PV2: 1, TS: 1 };
 
 /* ================= Estado (servidor + fila deste aparelho) ================= */
-const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor' };
+const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor', camada:'amaggi-camada' };
 const ls = {
   get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -418,6 +444,11 @@ const ctxObjs = [];
 let alvoPick = [];
 let sel = null, filtro = null;
 let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true);
+let camada = ls.get(LS.camada, 'tudo'); if (!CAMADAS.some((c) => c[0] === camada)) camada = 'tudo';
+function modoCamada(g){
+  if (camada === 'tudo' || g === camada) return 'on';
+  return NIVEL[g] > NIVEL[camada] ? 'off' : 'ghost';
+}
 let modelBox = new THREE.Box3();
 
 function resize(){
@@ -428,24 +459,24 @@ function resize(){
 new ResizeObserver(resize).observe(view); resize();
 
 const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
-loader.load(MODELO, (gltf) => {
+function addModelo(gltf, M){
   const root = gltf.scene; scene.add(root); root.updateMatrixWorld(true);
-  // Cada nó filho do rootNode é um elemento do Revit; Marca = nome do painel.
+  // Cada nó filho do rootNode é um elemento do Revit (ou uma tesoura inteira); Marca = código da peça.
   const top = root.children[0]?.children?.length ? root.children[0].children : root.children;
   top.forEach((o) => {
     const p = o.userData?.parameters || {};
     const code = normCode(p['Marca'] || p['Type NameOverride'] || o.name);
     const meshes = []; o.traverse((m) => { if (m.isMesh) meshes.push(m); });
-    if (code && PECA[code]) {
+    if (code && PECA[code] && PECA[code].grupo === M.grupo) {
       const box = new THREE.Box3().setFromObject(o);
-      const info = { code, obj: o, meshes, box, center: box.getCenter(new THREE.Vector3()), vol: p['Volume'] || '' };
+      const info = { code, grupo: M.grupo, obj: o, meshes, box, center: box.getCenter(new THREE.Vector3()), vol: p['Volume'] || '' };
       meshes.forEach((m) => { m.userData.code = code; });
       meshes.forEach((m) => {
         const o = m.material; o.flatShading = true; o.side = THREE.DoubleSide; o.metalness = 0.05; o.roughness = 0.7;
         if (o.opacity < 1) { o.transparent = true; } o.needsUpdate = true; m.userData.orig = o;
       });
       info.cor = '#' + meshes[0].material.color.getHexString(THREE.SRGBColorSpace);
-      const el = document.createElement('div'); el.className = 'tag'; el.textContent = code.replace(/^PV1-/, '');
+      const el = document.createElement('div'); el.className = 'tag'; el.textContent = rotulo(code);
       el.addEventListener('click', (e) => { e.stopPropagation(); selecionar(code, false); });
       const tag = new CSS2DObject(el); tag.position.set(info.center.x, box.max.y + 0.12, info.center.z); scene.add(tag);
       info.tag = tag; info.el = el;
@@ -454,19 +485,35 @@ loader.load(MODELO, (gltf) => {
       meshes.forEach((m) => { m.material = matCtx; m.renderOrder = 2; }); ctxObjs.push(o);
     }
   });
-  if (modelBox.isEmpty()) modelBox.setFromObject(root);
-  enquadrar(false, true);
-  aplicarVis(); refresh();
-  const L = document.getElementById('loading'); L.classList.add('hide'); setTimeout(() => (L.hidden = true), 350);
-}, (ev) => {
-  if (ev.total) { const p = Math.round(ev.loaded / ev.total * 100); document.getElementById('load-pct').textContent = p + '%'; document.getElementById('load-bar').style.width = p + '%'; }
-}, (err) => {
-  console.error(err);
-  document.getElementById('load-lbl').textContent = 'Não foi possível abrir o 3D';
-  const e = document.getElementById('load-err'); e.hidden = false;
-  e.textContent = 'Verifique a internet e recarregue a página. A lista de peças e as pranchas continuam disponíveis pela lupa.';
-  setTimeout(() => { document.getElementById('loading').hidden = true; }, 2500);
-});
+}
+// Os três modelos baixam juntos; a barra mostra o total. Se um falhar, os outros abrem assim mesmo.
+(() => {
+  const prog = MODELOS.map(() => ({ l: 0, t: 0 })), falhas = [];
+  let faltam = MODELOS.length;
+  const mostrar = () => {
+    const l = prog.reduce((s, x) => s + x.l, 0), t = prog.reduce((s, x) => s + x.t, 0);
+    if (!t) return; const p = Math.min(100, Math.round(l / t * 100));
+    document.getElementById('load-pct').textContent = p + '%'; document.getElementById('load-bar').style.width = p + '%';
+  };
+  const fim = () => {
+    if (--faltam) return;
+    if (!paineis.size) {
+      document.getElementById('load-lbl').textContent = 'Não foi possível abrir o 3D';
+      const e = document.getElementById('load-err'); e.hidden = false;
+      e.textContent = 'Verifique a internet e recarregue a página. A lista de peças e as pranchas continuam disponíveis pela lupa.';
+      setTimeout(() => { document.getElementById('loading').hidden = true; }, 2500);
+      return;
+    }
+    enquadrar(false, true);
+    aplicarVis(); refresh();
+    if (falhas.length) toast(`Não abriu o 3D: ${falhas.join(', ')} — recarregue com internet`);
+    const L = document.getElementById('loading'); L.classList.add('hide'); setTimeout(() => (L.hidden = true), 350);
+  };
+  MODELOS.forEach((M, i) => loader.load(M.url,
+    (gltf) => { addModelo(gltf, M); fim(); },
+    (ev) => { prog[i] = { l: ev.loaded, t: ev.total || ev.loaded }; mostrar(); },
+    (err) => { console.error(M.url, err); falhas.push(GRUPOS.find((g) => g.id === M.grupo).nome); fim(); }));
+})();
 
 function aplicarVis(){
   ctxObjs.forEach((o) => (o.visible = ctxOn));
@@ -486,11 +533,12 @@ function marcarContorno(code){
 }
 function pintar(){
   paineis.forEach((p) => {
-    const e = etapa(p.code);
+    const e = etapa(p.code), modo = modoCamada(p.grupo);
+    p.obj.visible = modo !== 'off';
     const fora = filtro != null && e !== filtro && sel !== p.code;
     p.meshes.forEach((x) => {
-      x.material = sel === p.code ? matHi : fora ? matDim : (e === 0 ? x.userData.orig : matSt[e]);
-      x.renderOrder = fora ? 1 : 0;
+      x.material = sel === p.code ? matHi : modo === 'ghost' ? matCtx : fora ? matDim : (e === 0 ? x.userData.orig : matSt[e]);
+      x.renderOrder = modo === 'ghost' ? 2 : fora ? 1 : 0;
     });
     p.el.style.setProperty('--c', e === 0 ? p.cor : ST[e].c);
     p.el.classList.toggle('sel', sel === p.code);
@@ -538,7 +586,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  const vis = filtro == null ? alvoPick : alvoPick.filter((m) => etapa(m.userData.code) === filtro);
+  const vis = alvoPick.filter((m) => modoCamada(PECA[m.userData.code].grupo) === 'on' && (filtro == null || etapa(m.userData.code) === filtro));
   const hit = ray.intersectObjects(vis, false)[0];
   if (hit) selecionar(hit.object.userData.code, false); else fecharSheet();
 });
@@ -550,12 +598,12 @@ function declutter(){
   const lista = [...paineis.values()].map((p) => ({ p, d: camera.position.distanceToSquared(p.tag.position) }))
     .sort((a, b) => (b.p.code === sel) - (a.p.code === sel) || a.d - b.d);
   for (const { p } of lista) {
-    if (!tagsOn) { p.tag.visible = false; continue; }
+    if (!tagsOn || (modoCamada(p.grupo) !== 'on' && p.code !== sel)) { p.tag.visible = false; continue; }
     _v.copy(p.tag.position).project(camera);
     if (_v.z > 1 || Math.abs(_v.x) > 1.1 || Math.abs(_v.y) > 1.1) { p.tag.visible = false; continue; }
-    const x = (_v.x + 1) / 2 * w, y = (1 - _v.y) / 2 * h, bw = 30, bh = 18;
-    const hit = p.code !== sel && placed.some((r) => Math.abs(r.x - x) < bw && Math.abs(r.y - y) < bh);
-    p.tag.visible = !hit; if (!hit) placed.push({ x, y });
+    const x = (_v.x + 1) / 2 * w, y = (1 - _v.y) / 2 * h, bw = 7 * p.el.textContent.length + 14, bh = 18;
+    const hit = p.code !== sel && placed.some((r) => Math.abs(r.x - x) < (bw + r.bw) / 2 && Math.abs(r.y - y) < bh);
+    p.tag.visible = !hit; if (!hit) placed.push({ x, y, bw });
   }
 }
 function loop(now){
@@ -582,17 +630,28 @@ function renderTopo(){
   $('prog-track').innerHTML = [4,3,2,1,5].map((i) => c[i] ? `<i style="width:${c[i] / tot * 100}%;background:${ST[i].c}"></i>` : '').join('');
 }
 function renderLegenda(){
-  const pv = PECAS.filter((p) => paineis.has(p.code)), c = contagem(pv);
+  const pv = PECAS.filter((p) => paineis.has(p.code) && modoCamada(p.grupo) === 'on'), c = contagem(pv);
   const lg = $('legend'); const min = lg.classList.contains('min');
   lg.classList.toggle('filtering', filtro != null);
-  lg.innerHTML = `<button class="lh" id="lg-h"><span>PV1 · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
+  const nomeCam = CAMADAS.find((x) => x[0] === camada)[1];
+  lg.innerHTML = `<div class="seg" role="group" aria-label="Camadas">${CAMADAS.map(([id, n]) => `<button class="${camada === id ? 'on' : ''}" data-cam="${id}">${n}</button>`).join('')}</div>` +
+    `<button class="lh" id="lg-h"><span>${camada === 'tudo' ? 'Tudo' : nomeCam} · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
     ST.map((s, i) => `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${i === 0 ? COR_PROJETO : s.c}"></span>${i === 0 ? 'Não iniciado (cor do projeto)' : s.n}<span class="n">${c[i]}</span></button>`).join('');
   lg.querySelectorAll('.chip').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
+  lg.querySelectorAll('.seg button').forEach((b) => b.onclick = () => trocarCamada(b.dataset.cam));
   $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
+}
+function trocarCamada(c){
+  camada = c; ls.set(LS.camada, camada);
+  if (sel && paineis.has(sel) && modoCamada(PECA[sel].grupo) !== 'on') fecharSheet();
+  if (camada === 'PV1' || camada === 'PV2' || camada === 'TS') grupoAtivo = camada;
+  refresh(); declutter();
 }
 
 /* --- folha do painel --- */
 function selecionar(code, voarAte = true){
+  // peça de uma camada escondida ou apagada: passa para a camada dela
+  if (paineis.has(code) && modoCamada(PECA[code].grupo) !== 'on') { camada = PECA[code].grupo; ls.set(LS.camada, camada); renderLegenda(); }
   sel = code; marcarContorno(code); renderSheet(); pintar(); renderLista();
   if (voarAte && paineis.has(code)) focar(code);
 }
@@ -611,7 +670,7 @@ function renderSheet(){
   const meta = s && s.autor ? `${s.autor}<br>${quando(s.em)}${s.pend ? ' · na fila' : ''}` : 'sem marcação';
   sh.innerHTML = `
     <div class="sh-head">
-      <div><h2 class="mono">${code}</h2><div class="sub">${g.nome}${p ? '' : ' · sem 3D no modelo'}</div></div>
+      <div><h2 class="mono">${code}</h2><div class="sub">${PECA[code].tipo ? `Tesoura tipo ${PECA[code].tipo} · ${PECA[code].num}ª de ${TESOURAS.length} na locação` : g.nome}${p ? '' : ' · sem 3D no modelo'}</div></div>
       <span class="sp"></span>
       <div class="nav"><button id="sh-prev" aria-label="Peça anterior">‹</button><button id="sh-next" aria-label="Próxima peça">›</button></div>
       <button class="x" id="sh-x" aria-label="Fechar">×</button>
@@ -642,7 +701,8 @@ function renderSheet(){
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
 /* --- lista --- */
-let grupoAtivo = 'PV1';
+let grupoAtivo = camada === 'tudo' ? 'PV1' : camada;
+const tem3D = (g) => !!GRUPOS.find((x) => x.id === g)?.tres;
 function renderLista(){
   if ($('list').hidden) return;
   const q = $('q').value.trim().toUpperCase();
@@ -662,7 +722,7 @@ function renderLista(){
   $('items').innerHTML = lista.length ? lista.map((p) => {
     const s = estado(p.code), e = s?.etapa ?? 0;
     const sub = s?.autor ? `${esc(s.autor)} · ${quando(s.em)}${s.pend ? ' · na fila' : ''}${e === 5 && s.nota ? ' · ' + esc(s.nota) : ''}` : '';
-    return `<button class="it ${sel === p.code ? 'sel' : ''}" data-c="${p.code}"><span class="sw" style="background:${ST[e].c}"></span><span class="cd">${p.code}</span><span class="st">${ST[e].n}${sub ? `<small>${sub}</small>` : ''}</span>${p.grupo === 'PV1' && !paineis.has(p.code) && paineis.size ? '<span class="no3d">fora do 3D</span>' : (p.grupo !== 'PV1' ? '<span class="no3d">sem 3D</span>' : '')}</button>`;
+    return `<button class="it ${sel === p.code ? 'sel' : ''}" data-c="${p.code}"><span class="sw" style="background:${ST[e].c}"></span><span class="cd">${p.code}</span><span class="st">${ST[e].n}${sub ? `<small>${sub}</small>` : ''}</span>${tem3D(p.grupo) ? (!paineis.has(p.code) && paineis.size ? '<span class="no3d">fora do 3D</span>' : '') : '<span class="no3d">sem 3D</span>'}</button>`;
   }).join('') : `<div class="empty">Nenhuma peça ${filtro != null ? 'com status “' + ST[filtro].n + '”' : 'encontrada'}.</div>`;
   $('items').querySelectorAll('.it').forEach((b) => b.onclick = () => {
     const c = b.dataset.c; probAberto = false;
@@ -703,9 +763,10 @@ $('busca').onsubmit = (ev) => {
 $('b-offline').onclick = async () => {
   const b = $('b-offline'), sp = b.querySelector('span'); b.disabled = true;
   let ok = 0, falha = 0;
-  for (let i = 0; i < PECAS.length; i += 6) {
-    await Promise.all(PECAS.slice(i, i + 6).map((p) => fetch(prancha(p.code)).then((r) => (r.ok ? ok++ : falha++)).catch(() => falha++)));
-    sp.textContent = `Baixando pranchas… ${ok + falha}/${PECAS.length}`;
+  const urls = [...new Set(PECAS.map((p) => p.pdf))]; // as 24 tesouras usam só 3 pranchas
+  for (let i = 0; i < urls.length; i += 6) {
+    await Promise.all(urls.slice(i, i + 6).map((u) => fetch(u).then((r) => (r.ok ? ok++ : falha++)).catch(() => falha++)));
+    sp.textContent = `Baixando pranchas… ${ok + falha}/${urls.length}`;
   }
   sp.textContent = falha ? `${ok} pranchas salvas, ${falha} falharam — tente de novo com internet` : `${ok} pranchas salvas neste aparelho`;
   b.disabled = false;
@@ -728,7 +789,7 @@ const pv = { code: null, doc: null, zoom: 1, token: 0, hist: false, ws: [] };
 async function abrirPrancha(code){
   const url = prancha(code);
   pv.code = code; pv.zoom = 1; pv.doc = null; const tk = ++pv.token;
-  $('pv-title').textContent = code;
+  $('pv-title').textContent = PECA[code]?.tipo ? `${code} · prancha ${PECA[code].tipo}` : code;
   $('pv-ext').href = url;
   $('pv-pages').innerHTML = '<div class="pv-msg">Abrindo prancha…</div>';
   $('pdfv').hidden = false;

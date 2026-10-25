@@ -1,4 +1,5 @@
 publicar.log
-# GLB original do Revit (59 MB): o app usa modelos/paineis-pv1.glb comprimido
+# GLBs originais do Revit: o app usa as versões comprimidas em modelos/
 /3D-*.glb
+/3D *.glb
 ligar.log
