@@ -85,6 +85,7 @@
   .legend.filtering .chip:not(.on){opacity:.5;}
   .seg{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:1px 1px 4px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:2px;}
   .seg button{border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--overlay-ink);border-radius:7px;padding:6px 6px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .seg button:first-child{grid-column:1/-1;}
   .seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
 
   .toolbar{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:5px;z-index:15;}
@@ -283,6 +284,8 @@ const MODELOS = [
   { url:'modelos/paineis-pv1-r2.glb',  grupo:'PV1' },  // r2: sem os planos das aberturas
   { url:'modelos/trelicas-pv2-r1.glb', grupo:'PV2' },  // "3D Treliças.glb": PV2-01 a 58 pela Marca
   { url:'modelos/tesouras-r1.glb',     grupo:'TS'  },  // "3D Tesouras.glb": barras agrupadas em 24 tesouras
+  { url:'modelos/cobertura-tr-r1.glb', grupo:'TR'  },  // "3D Cobertura.glb": 12 painéis TR, numerados pela posição na M08
+  { url:'modelos/laje-lj1-r1.glb',     grupo:'LJ1' },  // "3D Cobertura.glb": laje da caixa d'água LJ1
 ];
 const ST = [
   { n:'Não iniciado', c:'#b8c1cc' },
@@ -292,13 +295,13 @@ const ST = [
   { n:'Esquadro, prumo e parafusos ok', curto:'Esquadro<br>Prumo<br>Parafusos ok', c:'#22a05a' },
   { n:'Com problema', c:'#e04646' },
 ];
-// Peças do projeto (uma prancha por peça em pranchas/). PV1, PV2 e tesouras têm 3D.
+// Peças do projeto (uma prancha por peça em pranchas/). Todas têm 3D: PV1, PV2, tesouras, cobertura TR e laje LJ1.
 const GRUPOS = [
   { id:'PV1', nome:'Painéis PV1',  n:100, tres:true },
   { id:'PV2', nome:'Treliças PV2', n:58,  tres:true },
   { id:'TS',  nome:'Tesouras',             tres:true },
-  { id:'TR',  nome:'Peças TR',     n:12 },
-  { id:'LJ1', nome:'Laje',         n:1 },
+  { id:'TR',  nome:'Cobertura TR', n:12, tres:true },
+  { id:'LJ1', nome:"Laje caixa d'água", n:1, tres:true },
 ];
 const pad = (n) => String(n).padStart(2, '0');
 // Tesouras: 24 na obra, de 3 tipos (prancha M05). Código = tipo + nº dentro do tipo, contado da esquerda
@@ -321,6 +324,7 @@ const prancha = (code) => PECA[code]?.pdf || `pranchas/${code}.pdf`;
 // "PV1 - 23" / "PV1-23" / "pv1 23" -> "PV1-23";  "TS01-7" / "ts 1 7" / "TS-01/07" -> "TS01-07"
 function normCode(s){
   const u = String(s || '').toUpperCase();
+  if (/^\s*(LJ1?|LAJE)\s*$/.test(u)) return 'LJ1-01';   // "LJ1" ou "laje" -> laje da caixa d'água
   let m = u.match(/TS\s*-?\s*0*([1-3])\s*[-_.\/ ]\s*0*(\d{1,2})(?!\d)/);
   if (m) return `TS0${m[1]}-${pad(+m[2])}`;
   m = u.match(/(PV1|PV2|TR|LJ1)\s*[-_ ]?\s*0*(\d+)/);
@@ -329,8 +333,10 @@ function normCode(s){
 const rotulo = (code) => code.replace(/^PV1-/, '');
 // Camadas: ver tudo, ou só uma. As de cima da escolhida somem (o telhado não tapa o PV1);
 // as outras ficam apagadas, só de referência, e não respondem ao toque.
-const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'PV1'], ['PV2', 'Treliças'], ['TS', 'Tesouras']];
-const NIVEL = { PV1: 0, PV2: 1, TS: 1 };
+const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'PV1'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura']];
+const NIVEL = { PV1: 0, PV2: 1, TS: 1, LJ1: 1, TR: 2 };
+// A laje da caixa d'água fica na camada Cobertura (junto com os painéis TR).
+const camadaDe = (g) => (g === 'LJ1' ? 'TR' : g);
 
 /* ================= Estado (servidor + fila deste aparelho) ================= */
 const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor', camada:'amaggi-camada', plano:'amaggi-planilha' };
@@ -601,7 +607,7 @@ let sel = null, filtro = null;
 let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true);
 let camada = ls.get(LS.camada, 'tudo'); if (!CAMADAS.some((c) => c[0] === camada)) camada = 'tudo';
 function modoCamada(g){
-  if (camada === 'tudo' || g === camada) return 'on';
+  if (camada === 'tudo' || camadaDe(g) === camada) return 'on';
   return NIVEL[g] > NIVEL[camada] ? 'off' : 'ghost';
 }
 let modelBox = new THREE.Box3();
@@ -641,7 +647,7 @@ function addModelo(gltf, M){
     }
   });
 }
-// Os três modelos baixam juntos; a barra mostra o total. Se um falhar, os outros abrem assim mesmo.
+// Os modelos baixam juntos; a barra mostra o total. Se um falhar, os outros abrem assim mesmo.
 (() => {
   const prog = MODELOS.map(() => ({ l: 0, t: 0 })), falhas = [];
   let faltam = MODELOS.length;
@@ -804,14 +810,14 @@ function renderLegenda(){
 function trocarCamada(c){
   camada = c; ls.set(LS.camada, camada);
   if (sel && paineis.has(sel) && modoCamada(PECA[sel].grupo) !== 'on') fecharSheet();
-  if (camada === 'PV1' || camada === 'PV2' || camada === 'TS') grupoAtivo = camada;
+  if (camada !== 'tudo') grupoAtivo = camada;
   refresh(); declutter();
 }
 
 /* --- folha do painel --- */
 function selecionar(code, voarAte = true){
   // peça de uma camada escondida ou apagada: passa para a camada dela
-  if (paineis.has(code) && modoCamada(PECA[code].grupo) !== 'on') { camada = PECA[code].grupo; ls.set(LS.camada, camada); renderLegenda(); }
+  if (paineis.has(code) && modoCamada(PECA[code].grupo) !== 'on') { camada = camadaDe(PECA[code].grupo); ls.set(LS.camada, camada); renderLegenda(); }
   sel = code; marcarContorno(code); renderSheet(); pintar(); renderLista();
   if (voarAte && paineis.has(code)) focar(code);
 }
