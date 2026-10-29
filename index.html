@@ -337,6 +337,14 @@ const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'Painéis'], ['PV2', 'Treliças'], ['
 const NIVEL = { PV1: 0, PV2: 1, TS: 1, LJ1: 1, TR: 2 };
 // A laje da caixa d'água fica na camada Cobertura (junto com os painéis TR).
 const camadaDe = (g) => (g === 'LJ1' ? 'TR' : g);
+// Abas da lista (lupa): a aba Cobertura mostra os 12 painéis TR e a laje LJ1 juntos, como a aba "Cobertura" da planilha.
+const ABAS = [
+  { id:'PV1', nome:'Painéis PV1' },
+  { id:'PV2', nome:'Treliças PV2' },
+  { id:'TS',  nome:'Tesouras' },
+  { id:'TR',  nome:'Cobertura', sub:'TR + laje LJ1' },
+];
+const naAba = (p, a) => camadaDe(p.grupo) === a;
 
 /* ================= Estado (servidor + fila deste aparelho) ================= */
 const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor', camada:'amaggi-camada', plano:'amaggi-planilha' };
@@ -828,7 +836,7 @@ function fecharSheet(){ sel = null; marcarContorno(null); probAberto = false; $(
 let probAberto = false;
 function vizinho(code, d){
   const i = PECAS.findIndex((p) => p.code === code), g = PECA[code].grupo;
-  const lista = PECAS.filter((p) => p.grupo === g); const j = lista.findIndex((p) => p.code === code);
+  const lista = PECAS.filter((p) => naAba(p, camadaDe(g))); const j = lista.findIndex((p) => p.code === code);
   return lista[(j + d + lista.length) % lista.length].code;
 }
 const ICON_PDF = '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
@@ -878,23 +886,23 @@ function renderSheet(){
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
 /* --- lista --- */
-let grupoAtivo = camada === 'tudo' ? 'PV1' : camada;
+let grupoAtivo = camada === 'tudo' ? 'PV1' : camadaDe(camada);
 const tem3D = (g) => !!GRUPOS.find((x) => x.id === g)?.tres;
 function renderLista(){
   if ($('list').hidden) return;
   const q = $('q').value.trim().toUpperCase();
-  $('groups').innerHTML = GRUPOS.map((g) => {
-    const l = PECAS.filter((p) => p.grupo === g.id), c = contagem(l);
-    return `<button class="${grupoAtivo === g.id && !q ? 'on' : ''}" data-g="${g.id}">${g.nome}<small>${c[4]}/${l.length} ok${c[5] ? ' · ' + c[5] + ' prob.' : ''}</small></button>`;
+  $('groups').innerHTML = ABAS.map((g) => {
+    const l = PECAS.filter((p) => naAba(p, g.id)), c = contagem(l);
+    return `<button class="${grupoAtivo === g.id && !q ? 'on' : ''}" data-g="${g.id}">${g.nome}<small>${g.sub ? g.sub + ' · ' : ''}${c[4]}/${l.length} ok${c[5] ? ' · ' + c[5] + ' prob.' : ''}</small></button>`;
   }).join('');
   $('groups').querySelectorAll('button').forEach((b) => b.onclick = () => { grupoAtivo = b.dataset.g; $('q').value = ''; renderLista(); });
   let lista;
   if (q) {
     const nq = normCode(q), num = /^\d+$/.test(q) ? +q : null;
-    lista = PECAS.filter((p) => p.code === nq || p.code.replace('-', '').includes(q.replace(/[\s-]/g, '')) || (num != null && p.num === num && p.grupo === grupoAtivo));
-  } else lista = PECAS.filter((p) => p.grupo === grupoAtivo);
+    lista = PECAS.filter((p) => p.code === nq || p.code.replace('-', '').includes(q.replace(/[\s-]/g, '')) || (num != null && p.num === num && naAba(p, grupoAtivo)));
+  } else lista = PECAS.filter((p) => naAba(p, grupoAtivo));
   lista = lista.filter((p) => passa(p.code));
-  renderDias(!q && grupoAtivo === 'PV1');
+  renderDias(!q);
   // problemas primeiro, depois a ordem do número
   lista = lista.slice().sort((a, b) => (etapa(b.code) === 5) - (etapa(a.code) === 5) || PECAS.indexOf(a) - PECAS.indexOf(b));
   $('items').innerHTML = lista.length ? lista.map((p) => {
@@ -909,22 +917,22 @@ function renderLista(){
     selecionar(c, true);
   });
 }
-// Montagem por dia (painéis PV1): quantidade e kg; tocar no dia acende só esses painéis no 3D.
+// Montagem por dia (peças da aba aberta, pela data da planilha): quantidade e kg; tocar no dia acende só essas peças no 3D.
 function renderDias(mostrar){
   const box = $('dias'); box.hidden = !mostrar; if (!mostrar) return;
   const dias = {};
-  PECAS.filter((p) => p.grupo === 'PV1').forEach((p) => {
+  PECAS.filter((p) => naAba(p, grupoAtivo)).forEach((p) => {
     const d = montadoEm(p.code); if (!d) return;
     (dias[d] ||= { n: 0, kg: 0 }); dias[d].n++; dias[d].kg += kg(p.code) || 0;
   });
   const lista = Object.keys(dias).sort().reverse();
   if (!lista.length) { box.hidden = true; return; }
   const tn = lista.reduce((a, d) => a + dias[d].n, 0), tk = lista.reduce((a, d) => a + dias[d].kg, 0);
-  box.innerHTML = `<div class="dh"><span>Montagem por dia</span><span><b>${tn}</b> painéis · <b>${fmtKg(Math.round(tk))}</b> kg</span></div>
+  box.innerHTML = `<div class="dh"><span>Montagem por dia</span><span><b>${tn}</b> peças · <b>${fmtKg(Math.round(tk))}</b> kg</span></div>
     <div class="groups">${lista.map((d) => `<button class="${filtroDia === d ? 'on' : ''}" data-d="${d}">${fmtDia(d, true)}<small>${dias[d].n} · ${fmtKg(Math.round(dias[d].kg))} kg</small></button>`).join('')}</div>`;
   box.querySelectorAll('button').forEach((b) => b.onclick = () => {
     filtroDia = filtroDia === b.dataset.d ? null : b.dataset.d;
-    if (filtroDia) toast(`${dias[filtroDia].n} painéis montados em ${fmtDia(filtroDia)} · ${fmtKg(dias[filtroDia].kg)} kg`);
+    if (filtroDia) toast(`${dias[filtroDia].n} peças montadas em ${fmtDia(filtroDia)} · ${fmtKg(dias[filtroDia].kg)} kg`);
     refresh();
   });
 }
