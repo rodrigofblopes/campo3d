@@ -283,7 +283,7 @@ const OBRA = 'amaggi';
 const MODELOS = [
   { url:'modelos/paineis-pv1-r2.glb',  grupo:'PV1' },  // r2: sem os planos das aberturas
   { url:'modelos/trelicas-pv2-r1.glb', grupo:'PV2' },  // "3D Treliças.glb": PV2-01 a 58 pela Marca
-  { url:'modelos/tesouras-r1.glb',     grupo:'TS'  },  // "3D Tesouras.glb": barras agrupadas em 24 tesouras
+  { url:'modelos/tesouras-r1.glb',     grupo:'TS', cor:'#8b3dff' },  // "3D Tesouras.glb": 24 tesouras; roxo (o cinza do GLB se confundia com a referência)
   { url:'modelos/cobertura-tr-r1.glb', grupo:'TR'  },  // "3D Cobertura.glb": 12 painéis TR, numerados pela posição na M08
   { url:'modelos/laje-lj1-r1.glb',     grupo:'LJ1' },  // "3D Cobertura.glb": laje da caixa d'água LJ1
 ];
@@ -636,7 +636,7 @@ function addModelo(gltf, M){
       const info = { code, grupo: M.grupo, obj: o, meshes, box, center: box.getCenter(new THREE.Vector3()), vol: p['Volume'] || '' };
       meshes.forEach((m) => { m.userData.code = code; });
       meshes.forEach((m) => {
-        const o = m.material; o.flatShading = true; o.side = THREE.DoubleSide; o.metalness = 0.05; o.roughness = 0.7;
+        const o = m.material; if (M.cor) o.color.set(M.cor); o.flatShading = true; o.side = THREE.DoubleSide; o.metalness = 0.05; o.roughness = 0.7;
         if (o.opacity < 1) { o.transparent = true; } o.needsUpdate = true; m.userData.orig = o;
       });
       info.cor = '#' + meshes[0].material.color.getHexString(THREE.SRGBColorSpace);
