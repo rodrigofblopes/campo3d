@@ -77,6 +77,7 @@
   .legend{position:absolute;right:12px;top:12px;z-index:15;display:flex;flex-direction:column;gap:4px;background:var(--overlay);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px;min-width:150px;}
   .legend .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--overlay-dim);padding:2px 6px 3px;background:none;border:none;cursor:pointer;width:100%;}
   .legend.min .chip{display:none;}
+  .legend.min #lg-dia{display:flex;}  /* filtro por dia sempre à vista, para dar para limpar */
   .chip{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;border-radius:8px;padding:5px 7px;font-size:12px;font-weight:600;color:var(--overlay-ink);cursor:pointer;text-align:left;}
   .chip .sw{width:10px;height:10px;border-radius:3px;flex:none;}
   .chip .n{margin-left:auto;padding-left:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--overlay-dim);}
@@ -149,6 +150,10 @@
   .it .st small{display:block;font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .it .no3d{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--text-dim);border:1px dashed var(--border);border-radius:5px;padding:2px 5px;flex:none;}
   .lfoot{border-top:1px solid var(--border);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--text-dim);}
+  .dias{padding:2px 12px 6px;}
+  .dias .dh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:0 2px 5px;}
+  .dias .dh b{color:var(--text);letter-spacing:0;}
+  .dias .groups{padding:0 0 4px;}
   .empty{padding:20px;text-align:center;color:var(--text-dim);font-size:13px;}
 
   /* ---- Diálogo do nome ---- */
@@ -218,6 +223,7 @@
       <div class="lh2"><h3>Peças</h3><button class="x" id="list-x" aria-label="Fechar lista">×</button></div>
       <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="q" type="search" placeholder="Buscar: 23, PV2-07, TS01-5, TR-3…" inputmode="search" autocomplete="off"></label>
       <div class="groups" id="groups"></div>
+      <div class="dias" id="dias" hidden></div>
       <div class="items" id="items"></div>
       <div class="lfoot">
         <button class="btn" id="b-offline"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span>Baixar as pranchas para usar sem internet</span></button>
@@ -314,7 +320,7 @@ const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'PV1'], ['PV2', 'Treliças'], ['TS', 
 const NIVEL = { PV1: 0, PV2: 1, TS: 1 };
 
 /* ================= Estado (servidor + fila deste aparelho) ================= */
-const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor', camada:'amaggi-camada' };
+const LS = { nome:'amaggi-nome', fila:'amaggi-fila', cache:'amaggi-estado', tags:'amaggi-tags', ctx:'amaggi-ctx', cor:'amaggi-cor', camada:'amaggi-camada', plano:'amaggi-planilha' };
 const ls = {
   get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -324,12 +330,47 @@ let fila = ls.get(LS.fila, []);           // marcações ainda não enviadas
 let nome = ls.get(LS.nome, '');
 let syncState = 'wait', syncMsg = 'Conectando…', ultimoSync = null;
 
+/* Planilha Paineis.xlsx (pasta Projeto Steel): o publicar.bat grava dados/paineis.json com o peso
+   e a data de montagem de cada painel. Vale para todos os celulares. As marcações feitas no
+   celular somam por cima: uma etapa igual ou mais avançada (ou Problema) vale sempre; uma etapa
+   menor só vale se foi marcada depois da data da planilha (ex.: alguém desfez a marcação). */
+let plano = ls.get(LS.plano, { pecas: {} });
+const meioDia = (d) => new Date(d + 'T12:00:00').toISOString();
+function daPlanilha(code){
+  const p = plano.pecas?.[code]; if (!p) return null;
+  if (p.levantado) return { etapa: 2, autor: 'Planilha', em: meioDia(p.levantado), planilha: true };
+  if (p.montado) return { etapa: 1, autor: 'Planilha', em: meioDia(p.montado), planilha: true };
+  return null;
+}
+async function puxarPlanilha(){
+  try {
+    const r = await fetch('dados/paineis.json', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j && j.pecas) { plano = j; ls.set(LS.plano, plano); refresh(); }
+  } catch {}
+}
 function estado(code){
   let s = servidor[code] || null;
   for (const m of fila) if (m.elemento === code && (!s || m.em >= (s.em || ''))) s = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, pend: true };
   if (s && s.etapa === 3) s = { ...s, etapa: 2 };  // "Prumo ok" antigo: a conferência agora é uma só (etapa 4)
+  const pl = daPlanilha(code);
+  if (pl && (!s || (s.etapa !== 5 && s.etapa < pl.etapa && s.em < pl.em))) s = pl;
   return s;
 }
+const kg = (code) => plano.pecas?.[code]?.kg;
+const fmtKg = (n) => (n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+const diaLocal = (iso) => new Date(iso).toLocaleDateString('sv-SE');   // aaaa-mm-dd no fuso do aparelho
+const fmtDia = (d, semana) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', semana ? { weekday: 'short', day: '2-digit', month: '2-digit' } : { day: '2-digit', month: '2-digit' });
+// Dia em que o painel foi montado: o da planilha; sem planilha, o dia da marcação no celular.
+function montadoEm(code){
+  if (!montado(code)) return null;
+  const p = plano.pecas?.[code]; if (p?.montado) return p.montado;
+  const s = estado(code); return s?.em ? diaLocal(s.em) : null;
+}
+const montado = (code) => { const e = etapa(code); return e === 1 || e === 2 || e === 4 || (e === 5 && !!plano.pecas?.[code]?.montado); };
+let filtroDia = null;   // 'aaaa-mm-dd': mostra só os painéis montados nesse dia
+const passa = (code) => (filtro == null || etapa(code) === filtro) && (!filtroDia || montadoEm(code) === filtroDia);
 const etapa = (code) => (estado(code)?.etapa ?? 0);
 
 async function puxar(){
@@ -374,11 +415,13 @@ function setSync(s, msg){
   const d = document.getElementById('sync-dot'); d.className = 'dot ' + s;
   const pend = fila.length ? ` · ${fila.length} na fila` : '';
   document.getElementById('who').title = msg;
-  document.getElementById('sync-info').textContent = msg + (ultimoSync && s === 'on' ? ` às ${hora(ultimoSync)}` : '') + (s === 'on' ? pend : '');
+  document.getElementById('sync-info').textContent = msg + (ultimoSync && s === 'on' ? ` às ${hora(ultimoSync)}` : '') + (s === 'on' ? pend : '') +
+    (plano.atualizado ? ` · Planilha de ${new Date(plano.atualizado).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}` : '');
 }
 const hora = (d) => d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-function quando(iso){
+function quando(iso, soData){
   if (!iso) return '';
+  if (soData) return new Date(iso).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
   const d = new Date(iso), hoje = new Date();
   const mesmoDia = d.toDateString() === hoje.toDateString();
   return mesmoDia ? `hoje ${hora(d)}` : `${d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' })} ${hora(d)}`;
@@ -536,7 +579,7 @@ function pintar(){
   paineis.forEach((p) => {
     const e = etapa(p.code), modo = modoCamada(p.grupo);
     p.obj.visible = modo !== 'off';
-    const fora = filtro != null && e !== filtro && sel !== p.code;
+    const fora = !passa(p.code) && sel !== p.code;
     p.meshes.forEach((x) => {
       x.material = sel === p.code ? matHi : modo === 'ghost' ? matCtx : fora ? matDim : (e === 0 ? x.userData.orig : matSt[e]);
       x.renderOrder = modo === 'ghost' ? 2 : fora ? 1 : 0;
@@ -587,7 +630,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  const vis = alvoPick.filter((m) => modoCamada(PECA[m.userData.code].grupo) === 'on' && (filtro == null || etapa(m.userData.code) === filtro));
+  const vis = alvoPick.filter((m) => modoCamada(PECA[m.userData.code].grupo) === 'on' && passa(m.userData.code));
   const hit = ray.intersectObjects(vis, false)[0];
   if (hit) selecionar(hit.object.userData.code, false); else fecharSheet();
 });
@@ -627,18 +670,23 @@ function contagem(lista){
 }
 function renderTopo(){
   const c = contagem(PECAS), tot = PECAS.length;
-  $('prog-text').innerHTML = `<b>${c[4]}</b>/${tot} conferidas` + (c[5] ? ` · <span style="color:#c43030;font-weight:700">${c[5]} c/ problema</span>` : '');
+  const pk = PECAS.filter((p) => kg(p.code) != null), kgTot = pk.reduce((a, p) => a + kg(p.code), 0);
+  const kgMont = pk.filter((p) => montado(p.code)).reduce((a, p) => a + kg(p.code), 0);
+  $('prog-text').innerHTML = `<b>${c[4]}</b>/${tot} conferidas` + (c[5] ? ` · <span style="color:#c43030;font-weight:700">${c[5]} c/ problema</span>` : '') +
+    (kgTot ? `<br><b>${fmtKg(Math.round(kgMont))}</b> de ${fmtKg(Math.round(kgTot))} kg montados (${Math.round(kgMont / kgTot * 100)}%)` : '');
   $('prog-track').innerHTML = [4,2,1,5].map((i) => c[i] ? `<i style="width:${c[i] / tot * 100}%;background:${ST[i].c}"></i>` : '').join('');
 }
 function renderLegenda(){
   const pv = PECAS.filter((p) => paineis.has(p.code) && modoCamada(p.grupo) === 'on'), c = contagem(pv);
   const lg = $('legend'); const min = lg.classList.contains('min');
-  lg.classList.toggle('filtering', filtro != null);
+  lg.classList.toggle('filtering', filtro != null || !!filtroDia);
   const nomeCam = CAMADAS.find((x) => x[0] === camada)[1];
   lg.innerHTML = `<div class="seg" role="group" aria-label="Camadas">${CAMADAS.map(([id, n]) => `<button class="${camada === id ? 'on' : ''}" data-cam="${id}">${n}</button>`).join('')}</div>` +
     `<button class="lh" id="lg-h"><span>${camada === 'tudo' ? 'Tudo' : nomeCam} · ${pv.length} no 3D</span><span>${min ? '▸' : '▾'}</span></button>` +
+    (filtroDia ? `<button class="chip on" id="lg-dia"><span class="sw" style="background:#ff7a00"></span>Montados em ${fmtDia(filtroDia)}<span class="n">✕</span></button>` : '') +
     ST.map((s, i) => s.oculto ? '' : `<button class="chip ${filtro === i ? 'on' : ''}" data-i="${i}"><span class="sw" style="background:${i === 0 ? COR_PROJETO : s.c}"></span>${i === 0 ? 'Não iniciado (cor do projeto)' : s.n}<span class="n">${c[i]}</span></button>`).join('');
-  lg.querySelectorAll('.chip').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
+  lg.querySelectorAll('.chip[data-i]').forEach((b) => b.onclick = () => { const i = +b.dataset.i; filtro = filtro === i ? null : i; refresh(); });
+  $('lg-dia') && ($('lg-dia').onclick = () => { filtroDia = null; refresh(); });
   lg.querySelectorAll('.seg button').forEach((b) => b.onclick = () => trocarCamada(b.dataset.cam));
   $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
 }
@@ -668,10 +716,11 @@ const ICON_ALVO = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circ
 function renderSheet(){
   const sh = $('sheet'); if (!sel) { sh.hidden = true; return; }
   const code = sel, s = estado(code), e = s?.etapa ?? 0, p = paineis.get(code), g = GRUPOS.find((x) => x.id === PECA[code].grupo);
-  const meta = s && s.autor ? `${s.autor}<br>${quando(s.em)}${s.pend ? ' · na fila' : ''}` : 'sem marcação';
+  const meta = s && s.autor ? `${s.autor}<br>${quando(s.em, s.planilha)}${s.pend ? ' · na fila' : ''}` : 'sem marcação';
+  const pl = plano.pecas?.[code], peso = kg(code);
   sh.innerHTML = `
     <div class="sh-head">
-      <div><h2 class="mono">${code}</h2><div class="sub">${PECA[code].tipo ? `Tesoura tipo ${PECA[code].tipo} · ${PECA[code].num}ª de ${TESOURAS.length} na locação` : g.nome}${p ? '' : ' · sem 3D no modelo'}</div></div>
+      <div><h2 class="mono">${code}</h2><div class="sub">${PECA[code].tipo ? `Tesoura tipo ${PECA[code].tipo} · ${PECA[code].num}ª de ${TESOURAS.length} na locação` : g.nome}${peso != null ? ` · <b style="color:var(--text)">${fmtKg(peso)} kg</b>` : ''}${p ? '' : ' · sem 3D no modelo'}</div></div>
       <span class="sp"></span>
       <div class="nav"><button id="sh-prev" aria-label="Peça anterior">‹</button><button id="sh-next" aria-label="Próxima peça">›</button></div>
       <button class="x" id="sh-x" aria-label="Fechar">×</button>
@@ -686,6 +735,7 @@ function renderSheet(){
       ${p ? `<button class="btn" id="sh-focus" style="flex:none;padding:10px 12px" title="Centralizar no 3D">${ICON_ALVO}</button>` : ''}
       ${probAberto ? '' : `<button class="btn bad ${e === 5 ? 'on' : ''}" id="sh-prob" style="flex:none;padding:10px 12px">${e === 5 ? 'Com problema' : 'Problema'}</button>`}
     </div>
+    ${pl?.montado || pl?.levantado ? `<div class="facts"><span>Planilha: ${[pl.montado && `montado em <b>${fmtDia(pl.montado)}</b>`, pl.levantado && `levantado em <b>${fmtDia(pl.levantado)}</b>`].filter(Boolean).join(' · ')}</span></div>` : ''}
     <div class="facts">${e > 0 ? `<button class="btn ghost" id="sh-zero">Desfazer: voltar a não iniciado</button>` : ''}</div>`;
   sh.hidden = false;
   $('sh-x').onclick = fecharSheet;
@@ -717,18 +767,39 @@ function renderLista(){
     const nq = normCode(q), num = /^\d+$/.test(q) ? +q : null;
     lista = PECAS.filter((p) => p.code === nq || p.code.replace('-', '').includes(q.replace(/[\s-]/g, '')) || (num != null && p.num === num && p.grupo === grupoAtivo));
   } else lista = PECAS.filter((p) => p.grupo === grupoAtivo);
-  if (filtro != null) lista = lista.filter((p) => etapa(p.code) === filtro);
+  lista = lista.filter((p) => passa(p.code));
+  renderDias(!q && grupoAtivo === 'PV1');
   // problemas primeiro, depois a ordem do número
   lista = lista.slice().sort((a, b) => (etapa(b.code) === 5) - (etapa(a.code) === 5) || PECAS.indexOf(a) - PECAS.indexOf(b));
   $('items').innerHTML = lista.length ? lista.map((p) => {
     const s = estado(p.code), e = s?.etapa ?? 0;
-    const sub = s?.autor ? `${esc(s.autor)} · ${quando(s.em)}${s.pend ? ' · na fila' : ''}${e === 5 && s.nota ? ' · ' + esc(s.nota) : ''}` : '';
+    const pk = kg(p.code) != null ? `${fmtKg(kg(p.code))} kg` : '';
+    const sub = [pk, s?.autor ? `${esc(s.autor)} · ${quando(s.em, s.planilha)}${s.pend ? ' · na fila' : ''}${e === 5 && s.nota ? ' · ' + esc(s.nota) : ''}` : ''].filter(Boolean).join(' · ');
     return `<button class="it ${sel === p.code ? 'sel' : ''}" data-c="${p.code}"><span class="sw" style="background:${ST[e].c}"></span><span class="cd">${p.code}</span><span class="st">${ST[e].n}${sub ? `<small>${sub}</small>` : ''}</span>${tem3D(p.grupo) ? (!paineis.has(p.code) && paineis.size ? '<span class="no3d">fora do 3D</span>' : '') : '<span class="no3d">sem 3D</span>'}</button>`;
-  }).join('') : `<div class="empty">Nenhuma peça ${filtro != null ? 'com status “' + ST[filtro].n + '”' : 'encontrada'}.</div>`;
+  }).join('') : `<div class="empty">Nenhuma peça ${filtro != null ? 'com status “' + ST[filtro].n + '”' : filtroDia ? 'montada em ' + fmtDia(filtroDia) : 'encontrada'}.</div>`;
   $('items').querySelectorAll('.it').forEach((b) => b.onclick = () => {
     const c = b.dataset.c; probAberto = false;
     if (window.innerWidth < 760) $('list').hidden = true;
     selecionar(c, true);
+  });
+}
+// Montagem por dia (painéis PV1): quantidade e kg; tocar no dia acende só esses painéis no 3D.
+function renderDias(mostrar){
+  const box = $('dias'); box.hidden = !mostrar; if (!mostrar) return;
+  const dias = {};
+  PECAS.filter((p) => p.grupo === 'PV1').forEach((p) => {
+    const d = montadoEm(p.code); if (!d) return;
+    (dias[d] ||= { n: 0, kg: 0 }); dias[d].n++; dias[d].kg += kg(p.code) || 0;
+  });
+  const lista = Object.keys(dias).sort().reverse();
+  if (!lista.length) { box.hidden = true; return; }
+  const tn = lista.reduce((a, d) => a + dias[d].n, 0), tk = lista.reduce((a, d) => a + dias[d].kg, 0);
+  box.innerHTML = `<div class="dh"><span>Montagem por dia</span><span><b>${tn}</b> painéis · <b>${fmtKg(Math.round(tk))}</b> kg</span></div>
+    <div class="groups">${lista.map((d) => `<button class="${filtroDia === d ? 'on' : ''}" data-d="${d}">${fmtDia(d, true)}<small>${dias[d].n} · ${fmtKg(Math.round(dias[d].kg))} kg</small></button>`).join('')}</div>`;
+  box.querySelectorAll('button').forEach((b) => b.onclick = () => {
+    filtroDia = filtroDia === b.dataset.d ? null : b.dataset.d;
+    if (filtroDia) toast(`${dias[filtroDia].n} painéis montados em ${fmtDia(filtroDia)} · ${fmtKg(dias[filtroDia].kg)} kg`);
+    refresh();
   });
 }
 function abrirLista(){ $('list').hidden = false; $('b-list').classList.add('on'); renderLista(); }
@@ -911,9 +982,10 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('
 refresh();
 setSync(fila.length ? 'wait' : 'wait', 'Conectando…');
 puxar().then(() => { refresh(); enviar(); });
+puxarPlanilha();
 setInterval(() => { if (document.visibilityState === 'visible') { if (fila.length) enviar(); else puxar().then(refresh); } }, 30000);
 addEventListener('online', () => enviar());
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') puxar().then(() => { refresh(); enviar(); }); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { puxarPlanilha(); puxar().then(() => { refresh(); enviar(); }); } });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.type === 'model-updated') toast('Modelo atualizado — recarregue para ver'); });
 </script>
