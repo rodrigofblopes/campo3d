@@ -17,7 +17,10 @@ exit /b
 :enviar
 echo === %date% %time%
 rem Le a planilha de paineis (peso e datas) e grava dados\paineis.json
-powershell -NoProfile -ExecutionPolicy Bypass -File "docs\planilha-paineis.ps1" -Planilha "C:\Users\USUARIO\Desktop\Neto Lara\Amaggi\Projeto Steel\Paineis.xlsx"
+rem A planilha fica nesta pasta (Paineis.xlsx). Se nao estiver aqui, usa a da pasta Projeto Steel.
+set "PLANILHA=%CD%\Paineis.xlsx"
+if not exist "%PLANILHA%" set "PLANILHA=C:\Users\USUARIO\Desktop\Neto Lara\Amaggi\Projeto Steel\Paineis.xlsx"
+powershell -NoProfile -ExecutionPolicy Bypass -File "docs\planilha-paineis.ps1" -Planilha "%PLANILHA%"
 git add -A
 git commit -m "Atualizacao obra Amaggi"
 git push origin main

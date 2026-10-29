@@ -6,3 +6,6 @@ ligar.log
 # arquivos de trabalho grandes (SketchUp/IFC) ficam so no PC
 /*.ifc
 /*.glb
+# planilha de trabalho (o app usa dados/paineis.json) e arquivos temporarios do Excel/Office
+/Paineis.xlsx
+~$*

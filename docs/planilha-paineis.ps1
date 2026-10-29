@@ -2,8 +2,9 @@
 # Roda sozinho no publicar.bat. Funciona com a planilha aberta no Excel (le a ultima versao SALVA).
 # Colunas procuradas na linha 1 (qualquer ordem):
 #   "Paineis" (codigo PV1-1...)  "Peso (kg)"  "Data" ou "Montado" (data da montagem)  "Levantado" (opcional)
+# A planilha fica na pasta do Campo3D (Paineis.xlsx, ao lado do publicar.bat).
 param(
-  [string]$Planilha = "$env:USERPROFILE\Desktop\Neto Lara\Amaggi\Projeto Steel\Paineis.xlsx",
+  [string]$Planilha = (Join-Path (Split-Path -Parent $PSScriptRoot) 'Paineis.xlsx'),
   [string]$Saida = (Join-Path (Split-Path -Parent $PSScriptRoot) 'dados\paineis.json')
 )
 $ErrorActionPreference = 'Stop'
