@@ -333,7 +333,7 @@ function normCode(s){
 const rotulo = (code) => code.replace(/^PV1-/, '');
 // Camadas: ver tudo, ou só uma. As de cima da escolhida somem (o telhado não tapa o PV1);
 // as outras ficam apagadas, só de referência, e não respondem ao toque.
-const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'PV1'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura']];
+const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'Painéis'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura']];
 const NIVEL = { PV1: 0, PV2: 1, TS: 1, LJ1: 1, TR: 2 };
 // A laje da caixa d'água fica na camada Cobertura (junto com os painéis TR).
 const camadaDe = (g) => (g === 'LJ1' ? 'TR' : g);
@@ -349,10 +349,10 @@ let fila = ls.get(LS.fila, []);           // marcações ainda não enviadas
 let nome = ls.get(LS.nome, '');
 let syncState = 'wait', syncMsg = 'Conectando…', ultimoSync = null;
 
-/* Planilha Paineis.xlsx (pasta Projeto Steel): o publicar.bat grava dados/paineis.json com o peso
+/* Planilha Paineis.xlsx (na pasta do app): o publicar.bat grava dados/paineis.json com o peso
    e a data de montagem de cada painel. Vale para todos os celulares. As marcações feitas no
    celular somam por cima: uma etapa igual ou mais avançada (ou Problema) vale sempre; uma etapa
-   menor só vale se foi marcada depois da data da planilha (ex.: alguém desfez a marcação). */
+   menor só vale se foi marcada depois que a planilha foi salva (ex.: alguém desfez a marcação hoje). */
 let plano = ls.get(LS.plano, { pecas: {} });
 const meioDia = (d) => new Date(d + 'T12:00:00').toISOString();
 function daPlanilha(code){
@@ -374,7 +374,10 @@ function estado(code){
   for (const m of fila) if (m.elemento === code && (!s || m.em >= (s.em || ''))) s = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, fotos: m.fotos || [], pend: true };
   if (s && s.etapa === 3) s = { ...s, etapa: 2 };  // "Prumo ok" antigo: a conferência agora é uma só (etapa 4)
   const pl = daPlanilha(code);
-  if (pl && (!s || (s.etapa !== 5 && s.etapa < pl.etapa && s.em < pl.em))) s = pl;
+  // a planilha vale sobre marcação menor feita antes de ela ser salva (ex.: um "Desfazer" antigo)
+  const salva = plano.atualizado ? new Date(plano.atualizado).toISOString() : '';
+  const plSalva = pl && salva > pl.em ? salva : pl?.em;
+  if (pl && (!s || (s.etapa !== 5 && s.etapa < pl.etapa && s.em < plSalva))) s = pl;
   return s;
 }
 const kg = (code) => plano.pecas?.[code]?.kg;
