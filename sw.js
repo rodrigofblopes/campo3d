@@ -4,8 +4,9 @@
      segundo plano; se o arquivo mudou (nova exportação do Revit), avisa a página.
    - Pranchas (.pdf): cópia salva primeiro; sem cópia, baixa e guarda.
    - Bibliotecas e fontes (CDN): cópia salva primeiro, as URLs têm versão fixa.
-   - /api/ nunca passa pelo cache (marcações sempre do servidor). */
-const APP = 'campo3d-app-v2', MODELS = 'campo3d-modelos', LIBS = 'campo3d-libs-v1', PDFS = 'campo3d-pranchas';
+   - Fotos dos problemas (/api/fotos?id=): nunca mudam; cópia salva primeiro.
+   - O resto de /api/ nunca passa pelo cache (marcações sempre do servidor). */
+const APP = 'campo3d-app-v2', MODELS = 'campo3d-modelos', LIBS = 'campo3d-libs-v1', PDFS = 'campo3d-pranchas', FOTOS = 'campo3d-fotos';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
@@ -17,6 +18,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (url.origin === location.origin && url.pathname === '/api/fotos' && url.searchParams.get('id')) { e.respondWith(foto(req)); return; }
   if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
   if (url.origin === location.origin && url.pathname.endsWith('.pdf')) { e.respondWith(pdf(req)); return; }
   if (url.origin === location.origin && url.pathname.endsWith('.glb')) { e.respondWith(model(req)); return; }
@@ -72,4 +74,13 @@ async function model(req){
   });
   if (hit) { refresh.catch(() => {}); return hit; }
   return refresh;
+}
+
+async function foto(req){
+  const cache = await caches.open(FOTOS);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok) cache.put(req, res.clone());
+  return res;
 }

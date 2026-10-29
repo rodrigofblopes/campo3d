@@ -124,6 +124,16 @@
   .btn.ghost{flex:none;background:none;border-color:transparent;color:var(--text-dim);font-weight:600;font-size:12px;padding:8px 6px;}
   .prob{display:flex;flex-direction:column;gap:6px;}
   .prob textarea{width:100%;min-height:62px;border:1px solid var(--border);border-radius:10px;padding:8px 10px;resize:vertical;font-size:14px;}
+  .fotos{display:flex;gap:6px;flex-wrap:wrap;}
+  .ft{position:relative;width:66px;height:66px;border-radius:9px;overflow:hidden;border:1px solid var(--border);background:var(--panel-2);padding:0;cursor:pointer;flex:none;}
+  .ft img{width:100%;height:100%;object-fit:cover;display:block;}
+  .ft .rm{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.62);color:#fff;font-size:15px;line-height:20px;text-align:center;border:none;cursor:pointer;padding:0;}
+  .ft.add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:700;color:#b62f2f;border:1.5px dashed #e8a9a9;background:#fff5f5;}
+  .ft.add svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  .ft.add input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;}
+  .ft.falta img{display:none;}
+  .ft.falta::after{content:"foto a caminho";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px;color:var(--text-dim);padding:4px;}
+  .note .fotos{margin-top:7px;}
   .note{font-size:12.5px;background:#fff5f5;border:1px solid #f0c4c4;color:#7d1f1f;border-radius:10px;padding:8px 10px;}
   .facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--text-dim);}
   .facts b{color:var(--text);font-weight:600;}
@@ -298,10 +308,13 @@ const TESOURAS = [
   'TS02-01', 'TS02-02', 'TS02-03', 'TS03-01', 'TS03-02', 'TS03-03',
   ...Array.from({ length: 5 }, (_, i) => `TS01-${pad(i + 14)}`),
 ];
+// Peças retiradas da obra (fabricadas a mais por erro, sem posição no projeto). Não entram na lista,
+// na contagem nem no peso, mesmo que ainda estejam na planilha.
+const RETIRADAS = new Set(['PV1-83', 'PV1-90']);
 const PECAS = [];
 GRUPOS.forEach((g) => {
   if (g.id === 'TS') TESOURAS.forEach((code, i) => PECAS.push({ code, grupo: 'TS', num: i + 1, tipo: `TS ${code.slice(2, 4)}`, pdf: `pranchas/TS-${code.slice(2, 4)}.pdf` }));
-  else for (let i = 1; i <= g.n; i++) { const code = `${g.id}-${pad(i)}`; PECAS.push({ code, grupo: g.id, num: i, pdf: `pranchas/${code}.pdf` }); }
+  else for (let i = 1; i <= g.n; i++) { const code = `${g.id}-${pad(i)}`; if (RETIRADAS.has(code)) continue; PECAS.push({ code, grupo: g.id, num: i, pdf: `pranchas/${code}.pdf` }); }
 });
 const PECA = Object.fromEntries(PECAS.map((p) => [p.code, p]));
 const prancha = (code) => PECA[code]?.pdf || `pranchas/${code}.pdf`;
@@ -352,7 +365,7 @@ async function puxarPlanilha(){
 }
 function estado(code){
   let s = servidor[code] || null;
-  for (const m of fila) if (m.elemento === code && (!s || m.em >= (s.em || ''))) s = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, pend: true };
+  for (const m of fila) if (m.elemento === code && (!s || m.em >= (s.em || ''))) s = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, fotos: m.fotos || [], pend: true };
   if (s && s.etapa === 3) s = { ...s, etapa: 2 };  // "Prumo ok" antigo: a conferência agora é uma só (etapa 4)
   const pl = daPlanilha(code);
   if (pl && (!s || (s.etapa !== 5 && s.etapa < pl.etapa && s.em < pl.em))) s = pl;
@@ -379,7 +392,7 @@ async function puxar(){
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.erro || `HTTP ${r.status}`);
     servidor = {};
-    Object.entries(j.pontos || {}).forEach(([k, v]) => { servidor[k] = { etapa: v.etapa, autor: v.autor, em: new Date(v.em).toISOString(), nota: v.nota || '' }; });
+    Object.entries(j.pontos || {}).forEach(([k, v]) => { servidor[k] = { etapa: v.etapa, autor: v.autor, em: new Date(v.em).toISOString(), nota: v.nota || '', fotos: v.fotos || [] }; });
     ls.set(LS.cache, servidor);
     ultimoSync = new Date();
     if (!fila.length) setSync('on', 'Sincronizado');
@@ -390,7 +403,9 @@ async function puxar(){
   }
 }
 let enviando = false;
-async function enviar(){
+// fotos primeiro (assim a marcação não chega antes da foto), depois as marcações
+async function enviar(){ await enviarFotos(); return enviarMarcacoes(); }
+async function enviarMarcacoes(){
   if (enviando || !fila.length) return;
   enviando = true;
   const lote = fila.slice(0, 200);
@@ -400,10 +415,10 @@ async function enviar(){
       body: JSON.stringify({ obra: OBRA, marcacoes: lote }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.erro || `HTTP ${r.status}`);
-    lote.forEach((m) => { const s = servidor[m.elemento]; if (!s || m.em >= s.em) servidor[m.elemento] = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota }; });
+    lote.forEach((m) => { const s = servidor[m.elemento]; if (!s || m.em >= s.em) servidor[m.elemento] = { etapa: m.etapa, autor: m.autor, em: m.em, nota: m.nota, fotos: m.fotos || [] }; });
     fila = fila.slice(lote.length); ls.set(LS.fila, fila); ls.set(LS.cache, servidor);
     enviando = false;
-    if (fila.length) return enviar();
+    if (fila.length) return enviarMarcacoes();
     await puxar(); refresh();
   } catch (e) {
     enviando = false;
@@ -427,14 +442,110 @@ function quando(iso, soData){
   return mesmoDia ? `hoje ${hora(d)}` : `${d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' })} ${hora(d)}`;
 }
 
-function marcar(code, et, nota){
-  if (!nome) { pedirNome(() => marcar(code, et, nota)); return; }
-  const m = { elemento: code, etapa: et, autor: nome, ambiente: PECA[code]?.grupo || '', em: new Date().toISOString(), nota: nota || '' };
+function marcar(code, et, nota, fotos){
+  if (!nome) { pedirNome(() => marcar(code, et, nota, fotos)); return; }
+  const m = { elemento: code, etapa: et, autor: nome, ambiente: PECA[code]?.grupo || '', em: new Date().toISOString(), nota: nota || '', fotos: fotos || [] };
   fila.push(m); ls.set(LS.fila, fila);
   refresh();
   toast(`${code}: ${ST[et].n}`);
   enviar();
 }
+
+/* ================= Fotos do problema =================
+   A foto é reduzida no celular (lado maior 1600 px, JPEG ~200–300 KB) e guardada no aparelho
+   (IndexedDB) até subir para /api/fotos. A marcação "Com problema" leva só os ids das fotos. */
+const MAX_FOTOS = 4;
+const fotoLocal = new Map();   // id -> endereço da cópia no aparelho
+const fotoMem = [];            // reserva quando o aparelho não deixa usar o IndexedDB
+let fotoDb = null;
+function abrirFotoDb(){
+  return fotoDb ||= new Promise((ok, erro) => {
+    const r = indexedDB.open('campo3d-fotos', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('fotos', { keyPath: 'id' });
+    r.onsuccess = () => ok(r.result); r.onerror = () => erro(r.error);
+  });
+}
+async function fotoTx(modo, fn){
+  const db = await abrirFotoDb();
+  return new Promise((ok, erro) => {
+    const tx = db.transaction('fotos', modo); let res; const r = fn(tx.objectStore('fotos'));
+    if (r) r.onsuccess = () => { res = r.result; };
+    tx.oncomplete = () => ok(res); tx.onerror = () => erro(tx.error); tx.onabort = () => erro(tx.error);
+  });
+}
+async function carregarFotosLocais(){
+  try {
+    const todas = await fotoTx('readonly', (st) => st.getAll());
+    todas.forEach((f) => { if (!fotoLocal.has(f.id)) fotoLocal.set(f.id, URL.createObjectURL(f.blob)); });
+  } catch {}
+}
+const fotoUrl = (id) => fotoLocal.get(id) || `/api/fotos?id=${encodeURIComponent(id)}`;
+const novoId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+async function prepararFoto(file){
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = erro; i.src = url; });
+    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.72));
+    if (blob) return blob;
+  } catch {} finally { URL.revokeObjectURL(url); }
+  return file.size < 2.5e6 ? file : null;   // formato que o navegador não abre: manda o original se for pequeno
+}
+async function guardarFoto(f){
+  try { await fotoTx('readwrite', (st) => st.put(f)); } catch { fotoMem.push(f); }
+}
+const blobBase64 = (b) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => erro(r.error); r.readAsDataURL(b); });
+let enviandoFotos = false;
+async function enviarFotos(){
+  if (enviandoFotos) return; enviandoFotos = true;
+  try {
+    let lista = []; try { lista = (await fotoTx('readonly', (st) => st.getAll())).filter((f) => !f.enviado); } catch {}
+    lista = lista.concat(fotoMem.filter((f) => !f.enviado));
+    for (const f of lista) {
+      const r = await fetch('/api/fotos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ obra: f.obra, id: f.id, elemento: f.elemento, autor: f.autor || nome, em: f.em, mime: f.blob.type || 'image/jpeg', dados: await blobBase64(f.blob) }) });
+      if (!r.ok) break;
+      f.enviado = true;
+      if (!fotoMem.includes(f)) try { await fotoTx('readwrite', (st) => st.put(f)); } catch {}
+    }
+  } catch {} finally { enviandoFotos = false; }
+}
+// rascunho do formulário de problema (sobrevive às atualizações da tela)
+let prob = { code: null, texto: '', fotos: [], lendo: 0 };
+function abrirProblema(code){
+  const s = estado(code), e = s?.etapa ?? 0;
+  prob = { code, texto: e === 5 ? (s?.nota || '') : '', fotos: e === 5 ? (s?.fotos || []).map((id) => ({ id, url: fotoUrl(id) })) : [], lendo: 0 };
+  probAberto = true; renderSheet(); setTimeout(() => $('prob-t')?.focus(), 30);
+}
+async function anexarFotos(files){
+  const lista = [...files].slice(0, MAX_FOTOS - prob.fotos.length); if (!lista.length) return;
+  const code = prob.code; prob.lendo += lista.length; renderSheet();
+  for (const file of lista) {
+    const blob = await prepararFoto(file);
+    if (prob.code !== code) return;
+    prob.lendo--;
+    if (!blob) { toast('Não consegui abrir essa foto'); continue; }
+    prob.fotos.push({ id: novoId(), url: URL.createObjectURL(blob), blob, novo: true });
+    if (probAberto) renderSheet();
+  }
+}
+async function confirmarProblema(code){
+  const t = prob.texto.trim();
+  if (!nome) { pedirNome(() => confirmarProblema(code)); return; }
+  if (prob.lendo) { toast('Aguarde a foto terminar de carregar'); return; }
+  const em = new Date().toISOString();
+  for (const f of prob.fotos) if (f.novo) {
+    await guardarFoto({ id: f.id, obra: OBRA, elemento: code, autor: nome, em, blob: f.blob, enviado: false });
+    fotoLocal.set(f.id, f.url); f.novo = false;
+  }
+  probAberto = false;
+  marcar(code, 5, t, prob.fotos.map((f) => f.id));
+}
+const ICON_CAM = '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+const miniFotos = (ids, code) => `<div class="fotos">${ids.map((id, i) => `<button class="ft" data-foto="${esc(id)}" data-n="${i + 1}" aria-label="Ver foto ${i + 1}"><img src="${fotoUrl(id)}" alt="Foto ${i + 1} do problema" loading="lazy" onerror="this.parentNode.classList.add('falta')"></button>`).join('')}</div>`;
 
 /* ================= Nome ================= */
 let depoisNome = null;
@@ -726,9 +837,10 @@ function renderSheet(){
       <button class="x" id="sh-x" aria-label="Fechar">×</button>
     </div>
     <div class="cur"><span class="sw" style="background:${ST[e].c}"></span><b>${ST[e].n}</b><span class="meta">${meta}</span></div>
-    ${e === 5 && s?.nota ? `<div class="note"><b>Problema:</b> ${esc(s.nota)}</div>` : ''}
+    ${e === 5 && !probAberto && (s?.nota || s?.fotos?.length) ? `<div class="note">${s.nota ? `<b>Problema:</b> ${esc(s.nota)}` : '<b>Problema</b>'}${s.fotos?.length ? miniFotos(s.fotos, code) : ''}</div>` : ''}
     <div class="steps">${[1,2,4].map((i) => `<button class="step ${e !== 5 && e >= i ? 'done' : ''} ${e === i ? 'now' : ''}" data-e="${i}" style="--c:${ST[i].c}"><span class="ck">${e !== 5 && e >= i ? '✓' : ''}</span>${ST[i].curto || ST[i].n}</button>`).join('')}</div>
-    ${probAberto ? `<div class="prob"><textarea id="prob-t" placeholder="O que está errado? Ex.: montante fora de prumo, furo faltando…">${e === 5 ? esc(s?.nota || '') : ''}</textarea>
+    ${probAberto ? `<div class="prob"><textarea id="prob-t" placeholder="O que está errado? Ex.: montante fora de prumo, furo faltando…">${esc(prob.texto)}</textarea>
+      <div class="fotos">${prob.fotos.map((f, i) => `<div class="ft"><img src="${f.url}" alt="Foto ${i + 1}" data-ver="${i}" onerror="this.parentNode.classList.add('falta')"><button class="rm" data-rm="${i}" aria-label="Tirar a foto ${i + 1}">×</button></div>`).join('')}${Array.from({ length: prob.lendo }, () => '<div class="ft falta"></div>').join('')}${prob.fotos.length + prob.lendo < MAX_FOTOS ? `<label class="ft add">${ICON_CAM}${prob.fotos.length ? 'Mais foto' : 'Foto'}<input type="file" accept="image/*" id="prob-f" multiple></label>` : ''}</div>
       <div class="row2"><button class="btn" id="prob-c">Cancelar</button><button class="btn bad on" id="prob-ok">Marcar com problema</button></div></div>` : ''}
     <div class="row2">
       <button class="btn primary" id="sh-pdf">${ICON_PDF}Abrir prancha</button>
@@ -744,9 +856,14 @@ function renderSheet(){
   sh.querySelectorAll('.step').forEach((b) => b.onclick = () => { probAberto = false; marcar(code, +b.dataset.e); });
   $('sh-pdf').onclick = () => abrirPrancha(code);
   $('sh-focus') && ($('sh-focus').onclick = () => focar(code));
-  $('sh-prob') && ($('sh-prob').onclick = () => { probAberto = true; renderSheet(); setTimeout(() => $('prob-t')?.focus(), 30); });
+  $('sh-prob') && ($('sh-prob').onclick = () => abrirProblema(code));
   $('prob-c') && ($('prob-c').onclick = () => { probAberto = false; renderSheet(); });
-  $('prob-ok') && ($('prob-ok').onclick = () => { const t = $('prob-t').value.trim(); probAberto = false; marcar(code, 5, t); });
+  $('prob-ok') && ($('prob-ok').onclick = () => confirmarProblema(code));
+  $('prob-t') && ($('prob-t').oninput = (ev) => { prob.texto = ev.target.value; });
+  $('prob-f') && ($('prob-f').onchange = (ev) => { anexarFotos(ev.target.files); ev.target.value = ''; });
+  sh.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { prob.fotos.splice(+b.dataset.rm, 1); renderSheet(); });
+  sh.querySelectorAll('[data-ver]').forEach((im) => im.onclick = () => abrirImagem(prob.fotos[+im.dataset.ver].url, `${code} · foto ${+im.dataset.ver + 1}`));
+  sh.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => abrirImagem(fotoUrl(b.dataset.foto), `${code} · foto ${b.dataset.n} do problema`));
   $('sh-zero') && ($('sh-zero').onclick = () => { probAberto = false; marcar(code, 0); });
 }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
@@ -774,7 +891,7 @@ function renderLista(){
   $('items').innerHTML = lista.length ? lista.map((p) => {
     const s = estado(p.code), e = s?.etapa ?? 0;
     const pk = kg(p.code) != null ? `${fmtKg(kg(p.code))} kg` : '';
-    const sub = [pk, s?.autor ? `${esc(s.autor)} · ${quando(s.em, s.planilha)}${s.pend ? ' · na fila' : ''}${e === 5 && s.nota ? ' · ' + esc(s.nota) : ''}` : ''].filter(Boolean).join(' · ');
+    const sub = [pk, s?.autor ? `${esc(s.autor)} · ${quando(s.em, s.planilha)}${s.pend ? ' · na fila' : ''}${e === 5 && s.nota ? ' · ' + esc(s.nota) : ''}${e === 5 && s.fotos?.length ? ` · ${s.fotos.length} foto${s.fotos.length > 1 ? 's' : ''}` : ''}` : ''].filter(Boolean).join(' · ');
     return `<button class="it ${sel === p.code ? 'sel' : ''}" data-c="${p.code}"><span class="sw" style="background:${ST[e].c}"></span><span class="cd">${p.code}</span><span class="st">${ST[e].n}${sub ? `<small>${sub}</small>` : ''}</span>${tem3D(p.grupo) ? (!paineis.has(p.code) && paineis.size ? '<span class="no3d">fora do 3D</span>' : '') : '<span class="no3d">sem 3D</span>'}</button>`;
   }).join('') : `<div class="empty">Nenhuma peça ${filtro != null ? 'com status “' + ST[filtro].n + '”' : filtroDia ? 'montada em ' + fmtDia(filtroDia) : 'encontrada'}.</div>`;
   $('items').querySelectorAll('.it').forEach((b) => b.onclick = () => {
@@ -975,7 +1092,7 @@ addEventListener('resize', () => { if (!$('pdfv').hidden && !pv.doc && pv.ws.len
   body.addEventListener('dblclick', (e) => { const r = body.getBoundingClientRect(); zoomPara(pv.zoom > 1.2 ? 1 : 2.5, e.clientX - r.left, e.clientY - r.top); });
 })();
 
-function refresh(){ renderTopo(); renderLegenda(); pintar(); renderSheet(); renderLista(); }
+function refresh(){ renderTopo(); renderLegenda(); pintar(); if (!probAberto) renderSheet(); renderLista(); }
 
 /* ================= Início ================= */
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('pdfv').hidden) fecharPrancha(false); else if (!$('list').hidden) fecharLista(); else fecharSheet(); } });
@@ -983,6 +1100,7 @@ refresh();
 setSync(fila.length ? 'wait' : 'wait', 'Conectando…');
 puxar().then(() => { refresh(); enviar(); });
 puxarPlanilha();
+carregarFotosLocais().then(() => { if (sel) refresh(); enviar(); });
 setInterval(() => { if (document.visibilityState === 'visible') { if (fila.length) enviar(); else puxar().then(refresh); } }, 30000);
 addEventListener('online', () => enviar());
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { puxarPlanilha(); puxar().then(() => { refresh(); enviar(); }); } });

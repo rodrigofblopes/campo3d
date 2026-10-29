@@ -2,7 +2,7 @@
    GET  /api/etapas?obra=l14q13          -> etapa atual de cada ponto da obra
    POST /api/etapas  {obra, marcacoes:[{elemento, etapa, autor, ambiente, em, nota}]}
    Obra Amaggi (painéis LSF): 0 não iniciado · 1 montado · 2 levantado · 3 prumo ok ·
-   4 esquadro ok · 5 com problema (nota = descrição do problema).
+   4 esquadro ok · 5 com problema (nota = descrição do problema, fotos = ids em /api/fotos).
    Banco: Postgres (Neon) ligado ao projeto no Vercel, variável DATABASE_URL.
    As tabelas são criadas na primeira chamada. Última marcação vence, pela hora
    em que foi feita no celular (a fila offline pode chegar fora de ordem). */
@@ -30,11 +30,14 @@ async function criarTabelas(sql){
       marcado_em timestamptz not null, recebido_em timestamptz not null default now())`;
     await sql`alter table etapa_ponto add column if not exists nota text`;
     await sql`alter table etapa_historico add column if not exists nota text`;
+    await sql`alter table etapa_ponto add column if not exists fotos text`;
+    await sql`alter table etapa_historico add column if not exists fotos text`;
   })().catch((e) => { pronto = null; throw e; });
   return pronto;
 }
 
 const txt = (v, n) => (v == null ? null : String(v).slice(0, n));
+const lerFotos = (v) => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
 
 export default async function handler(req, res){
   res.setHeader('Cache-Control', 'no-store');
@@ -45,10 +48,10 @@ export default async function handler(req, res){
     if (req.method === 'GET') {
       const obra = txt(req.query.obra, 40);
       if (!obra) return res.status(400).json({ erro: 'Informe a obra' });
-      const linhas = await sql`select elemento, etapa, autor, ambiente, nota, marcado_em
+      const linhas = await sql`select elemento, etapa, autor, ambiente, nota, fotos, marcado_em
         from etapa_ponto where obra = ${obra}`;
       const pontos = {};
-      linhas.forEach((l) => { pontos[l.elemento] = { etapa: l.etapa, autor: l.autor, ambiente: l.ambiente, nota: l.nota, em: l.marcado_em }; });
+      linhas.forEach((l) => { pontos[l.elemento] = { etapa: l.etapa, autor: l.autor, ambiente: l.ambiente, nota: l.nota, fotos: lerFotos(l.fotos), em: l.marcado_em }; });
       return res.status(200).json({ obra, pontos, agora: new Date().toISOString() });
     }
 
@@ -64,12 +67,13 @@ export default async function handler(req, res){
         if (!elemento || !Number.isInteger(etapa) || etapa < 0 || etapa > ETAPA_MAX) continue;
         const em = isNaN(Date.parse(m.em)) ? new Date().toISOString() : new Date(m.em).toISOString();
         const autor = txt(m.autor, 60) || 'Sem nome', ambiente = txt(m.ambiente, 60), nota = txt(m.nota, 500);
-        await sql`insert into etapa_historico (obra, elemento, etapa, ambiente, autor, nota, marcado_em)
-          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${nota}, ${em})`;
-        await sql`insert into etapa_ponto (obra, elemento, etapa, ambiente, autor, nota, marcado_em)
-          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${nota}, ${em})
+        const fotos = Array.isArray(m.fotos) && m.fotos.length ? JSON.stringify(m.fotos.slice(0, 8).map((x) => txt(x, 60))) : null;
+        await sql`insert into etapa_historico (obra, elemento, etapa, ambiente, autor, nota, fotos, marcado_em)
+          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${nota}, ${fotos}, ${em})`;
+        await sql`insert into etapa_ponto (obra, elemento, etapa, ambiente, autor, nota, fotos, marcado_em)
+          values (${obra}, ${elemento}, ${etapa}, ${ambiente}, ${autor}, ${nota}, ${fotos}, ${em})
           on conflict (obra, elemento) do update set
-            etapa = excluded.etapa, nota = excluded.nota, ambiente = excluded.ambiente, autor = excluded.autor,
+            etapa = excluded.etapa, nota = excluded.nota, fotos = excluded.fotos, ambiente = excluded.ambiente, autor = excluded.autor,
             marcado_em = excluded.marcado_em, recebido_em = now()
           where etapa_ponto.marcado_em <= excluded.marcado_em`;
         salvas++;

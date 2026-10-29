@@ -64,6 +64,7 @@ try {
     $cod = [string](Valor $cel[$col.cod])
     if ($cod -notmatch '^\s*(PV1|PV2|TR|LJ1)\s*[-_ ]?\s*0*(\d+)') { continue }
     $code = '{0}-{1:D2}' -f $Matches[1], [int]$Matches[2]
+    if ($code -in @('PV1-83', 'PV1-90')) { continue }   # retirados da obra (fabricados a mais por erro)
     $campos = @()
     if ($col.kg) { $n = 0.0; $v = Valor $cel[$col.kg]; if ($v -and [double]::TryParse($v, [Globalization.NumberStyles]::Float, $inv, [ref]$n)) { $campos += '"kg":' + [Math]::Round($n, 1).ToString($inv) } }
     if ($col.mon) { $d = LerData (Valor $cel[$col.mon]); if ($d) { $campos += '"montado":"' + $d + '"' } }

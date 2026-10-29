@@ -3,3 +3,6 @@ publicar.log
 /3D-*.glb
 /3D *.glb
 ligar.log
+# arquivos de trabalho grandes (SketchUp/IFC) ficam so no PC
+/*.ifc
+/*.glb
