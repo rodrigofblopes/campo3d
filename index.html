@@ -512,15 +512,27 @@ async function prepararFoto(file){
   return file.size < 2.5e6 ? file : null;   // formato que o navegador não abre: manda o original se for pequeno
 }
 async function guardarFoto(f){
-  try { await fotoTx('readwrite', (st) => st.put(f)); } catch { fotoMem.push(f); }
+  try { await fotoTx('readwrite', (st) => st.put(f)); }
+  catch { const i = fotoMem.findIndex((x) => x.id === f.id); if (i >= 0) fotoMem[i] = f; else fotoMem.push(f); }
+}
+// foto do rascunho passa a valer (sai para o servidor) quando o problema é salvo
+async function firmarFoto(id, em){
+  const m = fotoMem.find((x) => x.id === id);
+  if (m) { m.rascunho = false; m.em = em; m.autor = nome; return; }
+  try { const f = await fotoTx('readonly', (st) => st.get(id)); if (f) { f.rascunho = false; f.em = em; f.autor = nome; await fotoTx('readwrite', (st) => st.put(f)); } } catch {}
+}
+function apagarFoto(id){
+  const i = fotoMem.findIndex((x) => x.id === id); if (i >= 0) fotoMem.splice(i, 1);
+  fotoTx('readwrite', (st) => st.delete(id)).catch(() => {});
+  fotoLocal.delete(id);
 }
 const blobBase64 = (b) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => erro(r.error); r.readAsDataURL(b); });
 let enviandoFotos = false;
 async function enviarFotos(){
   if (enviandoFotos) return; enviandoFotos = true;
   try {
-    let lista = []; try { lista = (await fotoTx('readonly', (st) => st.getAll())).filter((f) => !f.enviado); } catch {}
-    lista = lista.concat(fotoMem.filter((f) => !f.enviado));
+    let lista = []; try { lista = (await fotoTx('readonly', (st) => st.getAll())).filter((f) => !f.enviado && !f.rascunho); } catch {}
+    lista = lista.concat(fotoMem.filter((f) => !f.enviado && !f.rascunho));
     for (const f of lista) {
       const r = await fetch('/api/fotos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ obra: f.obra, id: f.id, elemento: f.elemento, autor: f.autor || nome, em: f.em, mime: f.blob.type || 'image/jpeg', dados: await blobBase64(f.blob) }) });
@@ -530,12 +542,45 @@ async function enviarFotos(){
     }
   } catch {} finally { enviandoFotos = false; }
 }
-// rascunho do formulário de problema (sobrevive às atualizações da tela)
-let prob = { code: null, texto: '', fotos: [], lendo: 0 };
+// rascunho do formulário de problema: fica gravado no aparelho a cada mudança, assim a foto
+// não se perde se o celular recarregar a página ao abrir a câmera
+let prob = { code: null, texto: '', orig: '', fotos: [], lendo: 0 };
+const RASC = 'amaggi-rascunho';
+function salvarRascunho(){
+  if (!probAberto || !prob.code) return;
+  ls.set(RASC, { code: prob.code, texto: prob.texto, orig: prob.orig, fotos: prob.fotos.map((f) => f.id), novas: prob.fotos.filter((f) => f.novo).map((f) => f.id) });
+}
+const temRascunho = () => probAberto && (prob.lendo > 0 || prob.fotos.some((f) => f.novo) || prob.texto.trim() !== prob.orig.trim());
+function descartarRascunho(){
+  prob.fotos.filter((f) => f.novo).forEach((f) => apagarFoto(f.id));
+  probAberto = false; prob = { code: null, texto: '', orig: '', fotos: [], lendo: 0 };
+  try { localStorage.removeItem(RASC); } catch {}
+}
+// antes de sair do formulário: se tem foto ou texto sem salvar, pergunta
+function largarProblema(){
+  if (!probAberto) return true;
+  if (temRascunho() && !confirm('O problema ainda não foi salvo. Descartar a foto e a descrição?')) return false;
+  descartarRascunho(); return true;
+}
+async function recuperarRascunho(){
+  const r = ls.get(RASC, null);
+  let soltas = []; try { soltas = (await fotoTx('readonly', (st) => st.getAll())).filter((f) => f.rascunho); } catch {}
+  const ids = new Set(r?.fotos || []);
+  soltas.filter((f) => !ids.has(f.id)).forEach((f) => apagarFoto(f.id));   // sobras de rascunhos antigos
+  if (!r || !PECA[r.code]) { try { localStorage.removeItem(RASC); } catch {} return; }
+  const novas = new Set(r.novas || []);
+  const fotos = (r.fotos || []).filter((id) => !novas.has(id) || fotoLocal.has(id)).map((id) => ({ id, url: fotoUrl(id), novo: novas.has(id) }));
+  if (!fotos.some((f) => f.novo) && (r.texto || '').trim() === (r.orig || '').trim()) { try { localStorage.removeItem(RASC); } catch {} return; }
+  selecionar(r.code, true);
+  prob = { code: r.code, texto: r.texto || '', orig: r.orig || '', fotos, lendo: 0 };
+  probAberto = true; renderSheet();
+  toast(`${r.code}: problema não salvo recuperado — toque em salvar`);
+}
 function abrirProblema(code){
   const s = estado(code), e = s?.etapa ?? 0;
-  prob = { code, texto: e === 5 ? (s?.nota || '') : '', fotos: e === 5 ? (s?.fotos || []).map((id) => ({ id, url: fotoUrl(id) })) : [], lendo: 0 };
-  probAberto = true; renderSheet(); setTimeout(() => $('prob-t')?.focus(), 30);
+  const texto = e === 5 ? (s?.nota || '') : '';
+  prob = { code, texto, orig: texto, fotos: e === 5 ? (s?.fotos || []).map((id) => ({ id, url: fotoUrl(id) })) : [], lendo: 0 };
+  probAberto = true; salvarRascunho(); renderSheet(); setTimeout(() => $('prob-t')?.focus(), 30);
 }
 async function anexarFotos(files){
   const lista = [...files].slice(0, MAX_FOTOS - prob.fotos.length); if (!lista.length) return;
@@ -544,8 +589,13 @@ async function anexarFotos(files){
     const blob = await prepararFoto(file);
     if (prob.code !== code) return;
     prob.lendo--;
-    if (!blob) { toast('Não consegui abrir essa foto'); continue; }
-    prob.fotos.push({ id: novoId(), url: URL.createObjectURL(blob), blob, novo: true });
+    if (!blob) { toast('Não consegui abrir essa foto'); if (probAberto) renderSheet(); continue; }
+    const id = novoId(), url = URL.createObjectURL(blob);
+    await guardarFoto({ id, obra: OBRA, elemento: code, autor: nome, em: new Date().toISOString(), blob, enviado: false, rascunho: true });
+    if (prob.code !== code || !probAberto) { apagarFoto(id); return; }   // formulário fechado enquanto a foto carregava
+    fotoLocal.set(id, url);
+    prob.fotos.push({ id, url, novo: true });
+    salvarRascunho();
     if (probAberto) renderSheet();
   }
 }
@@ -554,12 +604,11 @@ async function confirmarProblema(code){
   if (!nome) { pedirNome(() => confirmarProblema(code)); return; }
   if (prob.lendo) { toast('Aguarde a foto terminar de carregar'); return; }
   const em = new Date().toISOString();
-  for (const f of prob.fotos) if (f.novo) {
-    await guardarFoto({ id: f.id, obra: OBRA, elemento: code, autor: nome, em, blob: f.blob, enviado: false });
-    fotoLocal.set(f.id, f.url); f.novo = false;
-  }
+  for (const f of prob.fotos) if (f.novo) { await firmarFoto(f.id, em); f.novo = false; }
+  const ids = prob.fotos.map((f) => f.id);
   probAberto = false;
-  marcar(code, 5, t, prob.fotos.map((f) => f.id));
+  try { localStorage.removeItem(RASC); } catch {}
+  marcar(code, 5, t, ids);
 }
 const ICON_CAM = '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const miniFotos = (ids, code) => `<div class="fotos">${ids.map((id, i) => `<button class="ft" data-foto="${esc(id)}" data-n="${i + 1}" aria-label="Ver foto ${i + 1}"><img src="${fotoUrl(id)}" alt="Foto ${i + 1} do problema" loading="lazy" onerror="this.parentNode.classList.add('falta')"></button>`).join('')}</div>`;
@@ -827,12 +876,13 @@ function trocarCamada(c){
 
 /* --- folha do painel --- */
 function selecionar(code, voarAte = true){
+  if (code !== sel && !largarProblema()) return;
   // peça de uma camada escondida ou apagada: passa para a camada dela
   if (paineis.has(code) && modoCamada(PECA[code].grupo) !== 'on') { camada = camadaDe(PECA[code].grupo); ls.set(LS.camada, camada); renderLegenda(); }
   sel = code; marcarContorno(code); renderSheet(); pintar(); renderLista();
   if (voarAte && paineis.has(code)) focar(code);
 }
-function fecharSheet(){ sel = null; marcarContorno(null); probAberto = false; $('sheet').hidden = true; pintar(); renderLista(); }
+function fecharSheet(){ if (!largarProblema()) return; sel = null; marcarContorno(null); $('sheet').hidden = true; pintar(); renderLista(); }
 let probAberto = false;
 function vizinho(code, d){
   const i = PECAS.findIndex((p) => p.code === code), g = PECA[code].grupo;
@@ -858,7 +908,7 @@ function renderSheet(){
     <div class="steps">${[1,2,4].map((i) => `<button class="step ${e !== 5 && e >= i ? 'done' : ''} ${e === i ? 'now' : ''}" data-e="${i}" style="--c:${ST[i].c}"><span class="ck">${e !== 5 && e >= i ? '✓' : ''}</span>${ST[i].curto || ST[i].n}</button>`).join('')}</div>
     ${probAberto ? `<div class="prob"><textarea id="prob-t" placeholder="O que está errado? Ex.: montante fora de prumo, furo faltando…">${esc(prob.texto)}</textarea>
       <div class="fotos">${prob.fotos.map((f, i) => `<div class="ft"><img src="${f.url}" alt="Foto ${i + 1}" data-ver="${i}" onerror="this.parentNode.classList.add('falta')"><button class="rm" data-rm="${i}" aria-label="Tirar a foto ${i + 1}">×</button></div>`).join('')}${Array.from({ length: prob.lendo }, () => '<div class="ft falta"></div>').join('')}${prob.fotos.length + prob.lendo < MAX_FOTOS ? `<label class="ft add">${ICON_CAM}${prob.fotos.length ? 'Mais foto' : 'Foto'}<input type="file" accept="image/*" id="prob-f" multiple></label>` : ''}</div>
-      <div class="row2"><button class="btn" id="prob-c">Cancelar</button><button class="btn bad on" id="prob-ok">Marcar com problema</button></div></div>` : ''}
+      <div class="row2"><button class="btn" id="prob-c">Cancelar</button><button class="btn bad on" id="prob-ok">${e === 5 ? 'Salvar problema' : 'Marcar com problema'}</button></div></div>` : ''}
     <div class="row2">
       <button class="btn primary" id="sh-pdf">${ICON_PDF}Abrir prancha</button>
       ${p ? `<button class="btn" id="sh-focus" style="flex:none;padding:10px 12px" title="Centralizar no 3D">${ICON_ALVO}</button>` : ''}
@@ -868,20 +918,20 @@ function renderSheet(){
     <div class="facts">${e > 0 ? `<button class="btn ghost" id="sh-zero">Desfazer: voltar a não iniciado</button>` : ''}</div>`;
   sh.hidden = false;
   $('sh-x').onclick = fecharSheet;
-  $('sh-prev').onclick = () => { probAberto = false; selecionar(vizinho(code, -1)); };
-  $('sh-next').onclick = () => { probAberto = false; selecionar(vizinho(code, 1)); };
-  sh.querySelectorAll('.step').forEach((b) => b.onclick = () => { probAberto = false; marcar(code, +b.dataset.e); });
+  $('sh-prev').onclick = () => { selecionar(vizinho(code, -1)); };
+  $('sh-next').onclick = () => { selecionar(vizinho(code, 1)); };
+  sh.querySelectorAll('.step').forEach((b) => b.onclick = () => { if (!largarProblema()) return; marcar(code, +b.dataset.e); });
   $('sh-pdf').onclick = () => abrirPrancha(code);
   $('sh-focus') && ($('sh-focus').onclick = () => focar(code));
   $('sh-prob') && ($('sh-prob').onclick = () => abrirProblema(code));
-  $('prob-c') && ($('prob-c').onclick = () => { probAberto = false; renderSheet(); });
+  $('prob-c') && ($('prob-c').onclick = () => { if (largarProblema()) renderSheet(); });
   $('prob-ok') && ($('prob-ok').onclick = () => confirmarProblema(code));
-  $('prob-t') && ($('prob-t').oninput = (ev) => { prob.texto = ev.target.value; });
+  $('prob-t') && ($('prob-t').oninput = (ev) => { prob.texto = ev.target.value; salvarRascunho(); });
   $('prob-f') && ($('prob-f').onchange = (ev) => { anexarFotos(ev.target.files); ev.target.value = ''; });
-  sh.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { prob.fotos.splice(+b.dataset.rm, 1); renderSheet(); });
+  sh.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { const [f] = prob.fotos.splice(+b.dataset.rm, 1); if (f?.novo) apagarFoto(f.id); salvarRascunho(); renderSheet(); });
   sh.querySelectorAll('[data-ver]').forEach((im) => im.onclick = () => abrirImagem(prob.fotos[+im.dataset.ver].url, `${code} · foto ${+im.dataset.ver + 1}`));
   sh.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => abrirImagem(fotoUrl(b.dataset.foto), `${code} · foto ${b.dataset.n} do problema`));
-  $('sh-zero') && ($('sh-zero').onclick = () => { probAberto = false; marcar(code, 0); });
+  $('sh-zero') && ($('sh-zero').onclick = () => { if (!largarProblema()) return; marcar(code, 0); });
 }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
@@ -912,7 +962,7 @@ function renderLista(){
     return `<button class="it ${sel === p.code ? 'sel' : ''}" data-c="${p.code}"><span class="sw" style="background:${ST[e].c}"></span><span class="cd">${p.code}</span><span class="st">${ST[e].n}${sub ? `<small>${sub}</small>` : ''}</span>${tem3D(p.grupo) ? (!paineis.has(p.code) && paineis.size ? '<span class="no3d">fora do 3D</span>' : '') : '<span class="no3d">sem 3D</span>'}</button>`;
   }).join('') : `<div class="empty">Nenhuma peça ${filtro != null ? 'com status “' + ST[filtro].n + '”' : filtroDia ? 'montada em ' + fmtDia(filtroDia) : 'encontrada'}.</div>`;
   $('items').querySelectorAll('.it').forEach((b) => b.onclick = () => {
-    const c = b.dataset.c; probAberto = false;
+    const c = b.dataset.c;
     if (window.innerWidth < 760) $('list').hidden = true;
     selecionar(c, true);
   });
@@ -955,7 +1005,7 @@ $('busca').onsubmit = (ev) => {
   let code = normCode(q);
   if (!code && /^\d+$/.test(q)) code = `PV1-${pad(+q)}`; // só o número: painel do PV1
   if (code && PECA[code]) {
-    inp.value = ''; inp.blur(); probAberto = false;
+    inp.value = ''; inp.blur();
     if (window.innerWidth < 760) fecharLista();
     selecionar(code, true);
     if (!paineis.has(code)) toast(`${code} não tem 3D — use a prancha`);
@@ -1117,9 +1167,10 @@ refresh();
 setSync(fila.length ? 'wait' : 'wait', 'Conectando…');
 puxar().then(() => { refresh(); enviar(); });
 puxarPlanilha();
-carregarFotosLocais().then(() => { if (sel) refresh(); enviar(); });
+carregarFotosLocais().then(recuperarRascunho).then(() => { if (sel && !probAberto) refresh(); enviar(); });
 setInterval(() => { if (document.visibilityState === 'visible') { if (fila.length) enviar(); else puxar().then(refresh); } }, 30000);
 addEventListener('online', () => enviar());
+addEventListener('beforeunload', (ev) => { if (temRascunho()) { salvarRascunho(); ev.preventDefault(); } });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { puxarPlanilha(); puxar().then(() => { refresh(); enviar(); }); } });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.type === 'model-updated') toast('Modelo atualizado — recarregue para ver'); });
