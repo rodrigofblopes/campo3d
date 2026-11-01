@@ -1,0 +1,58 @@
+﻿PLANILHA <-> APP: COMO DEIXAR TUDO FALANDO A MESMA LÍNGUA
+(preparado em 31/10/2026)
+
+O QUE MUDOU
+- O que você lança na Paineis.xlsx vai direto para o app ao SALVAR (Ctrl+S).
+  O celular do Fábio vê em até 30 segundos. Não precisa mais esperar o publicar.bat para as marcações.
+- O que o Fábio marca no celular aparece numa aba "App ao vivo" do seu Excel, atualizada sozinha a cada 1 minuto.
+
+ARQUIVOS NOVOS NESTA PASTA
+- sincronizar.bat .................. liga o envio automático (fica numa janela minimizada)
+- docs\enviar-marcacoes.ps1 ........ envia as marcações da planilha para o app
+- docs\vigiar-planilha.ps1 ......... percebe quando a planilha foi salva e chama o envio
+- api\etapas.js (alterado) ......... o app agora também entrega os dados em CSV para o Excel
+- enviar.log ....................... aparece depois do 1º envio: histórico do que foi enviado
+
+PASSO 1 - PUBLICAR UMA VEZ (para o app ganhar o endereço do Excel)
+  Rode o publicar.bat como sempre.
+
+PASSO 2 - LIGAR O ENVIO AUTOMÁTICO
+  Dê dois cliques em sincronizar.bat. Abre uma janela minimizada "Campo3D - sincronizando planilha".
+  Deixe aberta. Ela já faz um envio na hora e depois envia a cada vez que você salvar a planilha.
+  Para ligar sozinho quando o Windows abrir: Win+R, digite shell:startup e cole um atalho do sincronizar.bat.
+  Teste sem enviar nada: no PowerShell, nesta pasta:
+     powershell -ExecutionPolicy Bypass -File docs\enviar-marcacoes.ps1 -Simular
+
+PASSO 3 - ABA "APP AO VIVO" NO EXCEL
+  1. Abra a Paineis.xlsx > guia Dados > Obter Dados > De Outras Fontes > Da Web.
+  2. Cole o endereço (o mesmo site que abre no celular, com este final):
+        https://campo3d.vercel.app/api/etapas?obra=amaggi&formato=csv
+     (se o seu app abre em outro endereço, troque só o começo)
+  3. Clique em Carregar. Renomeie a aba nova para: App ao vivo
+  4. Guia Dados > Consultas e Conexões > botão direito na consulta > Propriedades:
+        [x] Atualizar a cada 1 minuto
+        [x] Atualizar dados ao abrir o arquivo
+  5. Não digite nada nessa aba: ela é só leitura e é refeita a cada atualização.
+
+  Colunas da aba: Peça | Código planilha | Etapa nº | Etapa | Marcado por | Marcado em | Data | Observação | Fotos
+  "Código planilha" já vem no formato da sua planilha (PV1-1, PV2-7, TS1-5, LJ-1).
+
+PASSO 4 (OPCIONAL) - VER O STATUS DO APP AO LADO DE CADA PEÇA
+  Na aba Painéis-PV1 (e nas outras), na coluna F (vazia), título "No app", linha 2:
+     =SEERRO(PROCX(A2;'App ao vivo'!B:B;'App ao vivo'!D:D);"-")
+  e arraste para baixo. Mostra Montado / Levantado / Conferido / Com problema, como está no celular.
+  (Não use as colunas G, H e I: lá está a tabela de resumo.)
+
+REGRAS PARA NINGUÉM APAGAR O TRABALHO DO OUTRO
+- Data Montado preenchida = Montado. Data Levantado preenchida = Levantado.
+- Se o app já está na mesma etapa ou mais avançado (Levantado, Conferido, Com problema), a planilha não mexe.
+- Se alguém mexeu no celular DEPOIS de você salvar a planilha (por exemplo, desfez uma marcação), vale o celular.
+- Apagar uma data na planilha NÃO desfaz no app. Para desfazer, use o app.
+- Observações e fotos do Fábio são mantidas quando a planilha avança uma peça.
+- Pesos e datas para os vídeos continuam saindo da planilha; o publicar.bat continua igual.
+
+SE DER ERRO
+- Abra enviar.log: a última linha diz o que aconteceu.
+- "ERRO ao enviar ao app": confira a internet e o endereço do app.
+- Testado em 31/10 com uma cópia da planilha e um servidor de teste (marcações de celular,
+  problema com foto e "desfazer" preservados). Ainda não rodou contra o servidor de verdade.

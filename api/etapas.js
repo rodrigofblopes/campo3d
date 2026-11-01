@@ -1,5 +1,6 @@
 /* API das etapas de execução (Campo3D).
    GET  /api/etapas?obra=l14q13          -> etapa atual de cada ponto da obra
+   GET  /api/etapas?obra=amaggi&formato=csv -> a mesma coisa em CSV, para o Excel (Dados > Da Web)
    POST /api/etapas  {obra, marcacoes:[{elemento, etapa, autor, ambiente, em, nota}]}
    Obra Amaggi (painéis LSF): 0 não iniciado · 1 montado · 2 levantado · 3 prumo ok ·
    4 esquadro ok · 5 com problema (nota = descrição do problema, fotos = ids em /api/fotos).
@@ -39,6 +40,31 @@ async function criarTabelas(sql){
 const txt = (v, n) => (v == null ? null : String(v).slice(0, n));
 const lerFotos = (v) => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
 
+/* CSV para o Excel: uma linha por peça marcada no app.
+   "Peça" = código do app (PV1-01, TS01-05, LJ1-01); "Código planilha" = como está na Paineis.xlsx
+   (PV1-1, TS1-5, LJ-1), para usar no PROCX. Datas no horário de Manaus, formato aaaa-mm-dd hh:mm. */
+const NOMES = ['Não iniciado', 'Montado', 'Levantado', 'Levantado', 'Conferido (esquadro, prumo e parafusos)', 'Com problema'];
+function codigoPlanilha(c){
+  let m = c.match(/^TS(\d+)-(\d+)$/); if (m) return `TS${+m[1]}-${+m[2]}`;
+  m = c.match(/^LJ1-(\d+)$/); if (m) return `LJ-${+m[1]}`;
+  m = c.match(/^([A-Z]+\d*)-(\d+)$/); return m ? `${m[1]}-${+m[2]}` : c;
+}
+const dataManaus = (d) => {
+  if (!d) return '';
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Manaus', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(d)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+};
+const cel = (v) => { const t = v == null ? '' : String(v); return /[",;\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+function csvDoApp(pontos){
+  const ordem = Object.keys(pontos).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+  const linhas = [['Peça', 'Código planilha', 'Etapa nº', 'Etapa', 'Marcado por', 'Marcado em', 'Data', 'Observação', 'Fotos']];
+  for (const k of ordem) {
+    const p = pontos[k], quando = dataManaus(p.em);
+    linhas.push([k, codigoPlanilha(k), p.etapa, NOMES[p.etapa] || '', p.autor || '', quando, quando.slice(0, 10), p.nota || '', (p.fotos || []).length]);
+  }
+  return '\uFEFF' + linhas.map((l) => l.map(cel).join(',')).join('\r\n') + '\r\n';
+}
+
 export default async function handler(req, res){
   res.setHeader('Cache-Control', 'no-store');
   try {
@@ -52,6 +78,11 @@ export default async function handler(req, res){
         from etapa_ponto where obra = ${obra}`;
       const pontos = {};
       linhas.forEach((l) => { pontos[l.elemento] = { etapa: l.etapa, autor: l.autor, ambiente: l.ambiente, nota: l.nota, fotos: lerFotos(l.fotos), em: l.marcado_em }; });
+      if (String(req.query.formato || '').toLowerCase() === 'csv') {
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `inline; filename="app-${obra}.csv"`);
+        return res.status(200).send(csvDoApp(pontos));
+      }
       return res.status(200).json({ obra, pontos, agora: new Date().toISOString() });
     }
 
