@@ -220,6 +220,8 @@
       <button class="ib" id="b-ctx" title="Paredes e louças de referência"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/></svg></button>
       <hr>
       <button class="ib" id="b-planta" title="Planta baixa do escritório" aria-label="Planta baixa do escritório"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 12h6M9 5v4M9 15v4M14 5v9h7M14 17v2"/></svg></button>
+      <hr>
+      <button class="ib" id="b-rel" title="Relatórios: PDF do resumo e vídeo da evolução" aria-label="Relatórios"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 17v-3M12 17v-6M15 17v-4"/></svg></button>
     </div>
 
     <div class="legend" id="legend"></div>
@@ -829,6 +831,7 @@ function declutter(){
 }
 function loop(now){
   requestAnimationFrame(loop);
+  if (window.__campoPausa) return;   // relatorios.js pausa o 3D principal enquanto grava o vídeo
   if (anim) anim(now);
   if (now - lastDeclutter > 120) { lastDeclutter = now; declutter(); }
   if (sel) matHi.emissiveIntensity = 0.3 + 0.35 * (0.5 + 0.5 * Math.sin(now / 260));
@@ -1172,8 +1175,12 @@ setInterval(() => { if (document.visibilityState === 'visible') { if (fila.lengt
 addEventListener('online', () => enviar());
 addEventListener('beforeunload', (ev) => { if (temRascunho()) { salvarRascunho(); ev.preventDefault(); } });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { puxarPlanilha(); puxar().then(() => { refresh(); enviar(); }); } });
+/* Relatórios (relatorios.js): acesso de leitura aos dados e ao 3D */
+window.CAMPO = { OBRA, PECAS, GRUPOS, ST, paineis, scene, camera, renderer, etapa, estado, kg, montado, montadoEm, diaLocal, fotoUrl,
+  plano: () => plano, nome: () => nome };
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.type === 'model-updated') toast('Modelo atualizado — recarregue para ver'); });
 </script>
+<script type="module" src="relatorios.js"></script>
 </body>
 </html>
