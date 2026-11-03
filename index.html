@@ -667,6 +667,8 @@ const matSt = ST.map((s) => new THREE.MeshStandardMaterial({ color: s.c, roughne
 // Painel selecionado: laranja forte pulsando + contorno escuro.
 const matHi = new THREE.MeshStandardMaterial({ color: '#ff7a00', roughness: .45, metalness: .05, emissive: new THREE.Color('#ff6a00'), emissiveIntensity: .5, side: THREE.DoubleSide, flatShading: true });
 const matEdge = new THREE.LineBasicMaterial({ color: '#1a0d00', transparent: true, opacity: .9 });
+// Juntas das placas: contorno de cada placa. Escuro = junta aberta; dourado = juntas tratadas; claro = basecoat feito.
+const matJunta = [new THREE.LineBasicMaterial({ color: '#1c2a44' }), new THREE.LineBasicMaterial({ color: '#d99a00' }), new THREE.LineBasicMaterial({ color: '#c3cad4', transparent: true, opacity: .6 })];
 // Não iniciado = cores do projeto (isométrica): rosa nos painéis externos, amarelo nos internos.
 // Essas cores já vêm nos materiais do GLB; só ligamos o flatShading (o GLB não tem normais).
 const COR_PROJETO = 'linear-gradient(135deg,#f59b9b 50%,#f2e600 50%)';
@@ -714,6 +716,7 @@ function addModelo(gltf, M){
       el.addEventListener('click', (e) => { e.stopPropagation(); selecionar(code, false); });
       const tag = new CSS2DObject(el); tag.position.set(info.center.x, box.max.y + 0.12, info.center.z); scene.add(tag);
       info.tag = tag; info.el = el;
+      if (M.grupo === 'PL') info.juntas = meshes.map((m) => { const l = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 30), matJunta[0]); l.renderOrder = 1; m.add(l); return l; });
       paineis.set(code, info); modelBox.union(box); alvoPick.push(...meshes);
     } else {
       meshes.forEach((m) => { m.material = matCtx; m.renderOrder = 2; }); ctxObjs.push(o);
@@ -769,6 +772,7 @@ function pintar(){
   paineis.forEach((p) => {
     const e = etapa(p.code), modo = modoCamada(p.grupo);
     p.obj.visible = modo !== 'off';
+    if (p.juntas) { const mj = e === 4 ? matJunta[2] : e === 2 ? matJunta[1] : matJunta[0]; p.juntas.forEach((l) => { l.visible = modo === 'on'; l.material = mj; }); }
     const fora = !passa(p.code) && sel !== p.code;
     p.meshes.forEach((x) => {
       x.material = sel === p.code ? matHi : modo === 'ghost' ? matCtx : fora ? matDim : (e === 0 ? x.userData.orig : matSt[e]);
@@ -798,6 +802,20 @@ function enquadrar(planta = false, instant = false){
   const pos = planta ? new THREE.Vector3(c.x, c.y + d, c.z + 0.01) : new THREE.Vector3(c.x + d * 0.55, c.y + d * 0.62, c.z + d * 0.62);
   camera.near = Math.max(0.05, d / 500); camera.far = d * 20; camera.updateProjectionMatrix();
   voar(pos, c, instant ? 0 : 500);
+}
+// Parede inteira de frente: junta todas as placas com a mesma sigla e põe a câmera na frente dela
+// (por fora nas paredes externas; por dentro nas faces internas I… e CI…).
+function focarParede(code){
+  const sig = code.split('-')[0], bx = new THREE.Box3();
+  paineis.forEach((p) => { if (p.grupo === 'PL' && p.code.split('-')[0] === sig) bx.union(p.box); });
+  if (bx.isEmpty()) return;
+  const c = bx.getCenter(new THREE.Vector3()), sz = bx.getSize(new THREE.Vector3()), mc = modelBox.getCenter(new THREE.Vector3());
+  const nx = sz.x < sz.z, dentro = /^(I|CI)/.test(sig);
+  const n = nx ? new THREE.Vector3(Math.sign(c.x - mc.x) || 1, 0, 0) : new THREE.Vector3(0, 0, Math.sign(c.z - mc.z) || 1);
+  if (dentro) n.multiplyScalar(-1);
+  const w = nx ? sz.z : sz.x, h = sz.y, vf = THREE.MathUtils.degToRad(camera.fov / 2), hf = Math.atan(Math.tan(vf) * camera.aspect);
+  const d = Math.max(w / 2 / Math.tan(hf), h / 2 / Math.tan(vf)) * 1.12 + 0.5;
+  voar(c.clone().add(n.multiplyScalar(d)).add(new THREE.Vector3(0, 0.001, 0)), c.clone());
 }
 function focar(code){
   const p = paineis.get(code); if (!p) return;
@@ -927,6 +945,7 @@ function renderSheet(){
     <div class="row2">
       <button class="btn primary" id="sh-pdf">${ICON_PDF}${pi ? 'Ver a parede' : 'Abrir prancha'}</button>
       ${p ? `<button class="btn" id="sh-focus" style="flex:none;padding:10px 12px" title="Centralizar no 3D">${ICON_ALVO}</button>` : ''}
+      ${pi && p ? `<button class="btn" id="sh-wall" style="flex:none;padding:10px 12px" title="Ver a parede inteira de frente no 3D">Parede</button>` : ''}
       ${probAberto ? '' : `<button class="btn bad ${e === 5 ? 'on' : ''}" id="sh-prob" style="flex:none;padding:10px 12px">${e === 5 ? 'Com problema' : 'Problema'}</button>`}
     </div>
     ${pl?.montado || pl?.levantado ? `<div class="facts"><span>Planilha: ${[pl.montado && `montado em <b>${fmtDia(pl.montado)}</b>`, pl.levantado && `levantado em <b>${fmtDia(pl.levantado)}</b>`].filter(Boolean).join(' · ')}</span></div>` : ''}
@@ -938,6 +957,7 @@ function renderSheet(){
   sh.querySelectorAll('.step').forEach((b) => b.onclick = () => { if (!largarProblema()) return; marcar(code, +b.dataset.e); });
   $('sh-pdf').onclick = () => (pi ? abrirImagem(`paredes/${code.split('-')[0]}.png`, `${code.split('-')[0]} · ${pi[0]}`) : abrirPrancha(code));
   $('sh-focus') && ($('sh-focus').onclick = () => focar(code));
+  $('sh-wall') && ($('sh-wall').onclick = () => focarParede(code));
   $('sh-prob') && ($('sh-prob').onclick = () => abrirProblema(code));
   $('prob-c') && ($('prob-c').onclick = () => { if (largarProblema()) renderSheet(); });
   $('prob-ok') && ($('prob-ok').onclick = () => confirmarProblema(code));
