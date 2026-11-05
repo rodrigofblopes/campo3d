@@ -690,9 +690,9 @@ const paineis = new Map();   // code -> {obj, meshes[], box, center, tag}
 const ctxObjs = [];
 let alvoPick = [];
 let sel = null, filtro = null;
-// No celular a ficha abre recolhida: tocar no painel só destaca em laranja; as propriedades abrem na barrinha.
+// Celular e computador: a ficha abre recolhida; clicar no painel só destaca em laranja; as propriedades abrem na barrinha.
 const ehCelular = () => matchMedia('(max-width:760px), (pointer:coarse)').matches;
-let shAberta = !ehCelular();
+let shAberta = false;
 let tagsOn = ls.get(LS.tags, true), ctxOn = ls.get(LS.ctx, true);
 let camada = ls.get(LS.camada, 'tudo'); if (!CAMADAS.some((c) => c[0] === camada)) camada = 'tudo';
 function modoCamada(g){
@@ -923,7 +923,7 @@ function trocarCamada(c){
 /* --- folha do painel --- */
 function selecionar(code, voarAte = true, manterFicha = false){
   if (code !== sel && !largarProblema()) return;
-  if (code !== sel && !manterFicha) shAberta = !ehCelular();
+  if (code !== sel && !manterFicha) shAberta = false;
   // peça de uma camada escondida ou apagada: passa para a camada dela
   if (paineis.has(code) && modoCamada(PECA[code].grupo) !== 'on') { camada = camadaDe(PECA[code].grupo); ls.set(LS.camada, camada); renderLegenda(); }
   sel = code; marcarContorno(code); renderSheet(); pintar(); renderLista();
@@ -963,7 +963,7 @@ function renderSheet(){
       <div><h2 class="mono">${code}</h2><div class="sub">${pi ? `${pi[0]} · <b style="color:var(--text)">${pi[1]} × ${pi[2]} mm</b>${pi[3] ? `<br><span style="color:#9a3412">${pi[3]}</span>` : ''}` : PECA[code].tipo ? `Tesoura tipo ${PECA[code].tipo} · ${PECA[code].num}ª de ${TESOURAS.length} na locação` : g.nome}${peso != null ? ` · <b style="color:var(--text)">${fmtKg(peso)} kg</b>` : ''}${p ? '' : ' · sem 3D no modelo'}</div></div>
       <span class="sp"></span>
       <div class="nav"><button id="sh-prev" aria-label="Peça anterior">‹</button><button id="sh-next" aria-label="Próxima peça">›</button></div>
-      ${ehCelular() && !probAberto ? '<button class="rec" id="sh-rec" aria-label="Recolher a ficha">▾</button>' : ''}
+      ${!probAberto ? '<button class="rec" id="sh-rec" aria-label="Recolher a ficha">▾</button>' : ''}
       <button class="x" id="sh-x" aria-label="Fechar">×</button>
     </div>
     <div class="cur"><span class="sw" style="background:${ST[e].c}"></span><b>${ST[e].n}</b><span class="meta">${meta}</span></div>
