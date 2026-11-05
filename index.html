@@ -423,6 +423,7 @@ function montadoEm(code){
   const s = estado(code); return s?.em ? diaLocal(s.em) : null;
 }
 const montado = (code) => { const e = etapa(code); return e === 1 || e === 2 || e === 4 || (e === 5 && !!plano.pecas?.[code]?.montado); };
+const levantado = (code) => { const e = etapa(code); return e === 2 || e === 4 || (e === 5 && !!plano.pecas?.[code]?.levantado); };
 let filtroDia = null;   // 'aaaa-mm-dd': mostra só os painéis montados nesse dia
 const passa = (code) => (filtro == null || etapa(code) === filtro) && (!filtroDia || montadoEm(code) === filtroDia);
 const etapa = (code) => (estado(code)?.etapa ?? 0);
@@ -895,8 +896,11 @@ function renderTopo(){
   const c = contagem(PECAS), tot = PECAS.length;
   const pk = PECAS.filter((p) => kg(p.code) != null), kgTot = pk.reduce((a, p) => a + kg(p.code), 0);
   const kgMont = pk.filter((p) => montado(p.code)).reduce((a, p) => a + kg(p.code), 0);
+  const kgLev = pk.filter((p) => levantado(p.code)).reduce((a, p) => a + kg(p.code), 0);
+  // Montagem concluída: o indicador passa a mostrar o peso já levantado
+  const fase = kgTot && Math.round(kgMont) >= Math.round(kgTot) ? { v: kgLev, t: 'levantados' } : { v: kgMont, t: 'montados' };
   $('prog-text').innerHTML = `<b>${c[4]}</b>/${tot} conferidas` + (c[5] ? ` · <span style="color:#c43030;font-weight:700">${c[5]} c/ problema</span>` : '') +
-    (kgTot ? `<br><b>${fmtKg(Math.round(kgMont))}</b> de ${fmtKg(Math.round(kgTot))} kg montados (${Math.round(kgMont / kgTot * 100)}%)` : '');
+    (kgTot ? `<br><b>${fmtKg(Math.round(fase.v))}</b> de ${fmtKg(Math.round(kgTot))} kg ${fase.t} (${Math.round(fase.v / kgTot * 100)}%)` : '');
   $('prog-track').innerHTML = [4,2,1,5].map((i) => c[i] ? `<i style="width:${c[i] / tot * 100}%;background:${ST[i].c}"></i>` : '').join('');
 }
 function renderLegenda(){
