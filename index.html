@@ -305,8 +305,10 @@ const MODELOS = [
   { url:'modelos/cobertura-tr-r1.glb', grupo:'TR'  },  // "3D Cobertura.glb": 12 painéis TR, numerados pela posição na M08
   { url:'modelos/laje-lj1-r1.glb',     grupo:'LJ1' },
   { url:'modelos/placas-externas-r1.glb', grupo:'PL', cor:'#efe6d2' },
-  { url:'modelos/eletrica-r1.glb', grupo:'EL', ref:true },  // projeto elétrico (pranchas ELE 01 a 05)
-  { url:'modelos/hidrossanitario-r1.glb', grupo:'HS', ref:true },  // água fria, esgoto, pluvial, ventilação e climatização (pranchas CHI, ETE, SAC)  // projeto elétrico (pranchas ALT-01-26-NLE-DPJ-ELE 01 a 05) em 3D: eletrodutos e pontos  // plaqueamento externo Glasroc-X: Marca = código da placa (FR-01…), 367 peças  // "3D Cobertura.glb": laje da caixa d'água LJ1
+  // Camadas Elétrica e Hidro desligadas em 12/11: a versão tirada dos PDFs tinha inconsistências.
+  // Voltam quando chegar o IFC dos projetos (descomentar as 2 linhas e os botões em CAMADAS).
+  // { url:'modelos/eletrica-r1.glb', grupo:'EL', ref:true },  // projeto elétrico (pranchas ELE 01 a 05)
+  // { url:'modelos/hidrossanitario-r1.glb', grupo:'HS', ref:true },  // água fria, esgoto, pluvial, ventilação e climatização (pranchas CHI, ETE, SAC)  // projeto elétrico (pranchas ALT-01-26-NLE-DPJ-ELE 01 a 05) em 3D: eletrodutos e pontos  // plaqueamento externo Glasroc-X: Marca = código da placa (FR-01…), 367 peças  // "3D Cobertura.glb": laje da caixa d'água LJ1
 ];
 const ST = [
   { n:'Não iniciado', c:'#b8c1cc' },
@@ -363,7 +365,7 @@ function normCode(s){
 const rotulo = (code) => code.replace(/^PV1-/, '');
 // Camadas: ver tudo, ou só uma. As de cima da escolhida somem (o telhado não tapa o PV1);
 // as outras ficam apagadas, só de referência, e não respondem ao toque.
-const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'Painéis'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura'], ['PL', 'Placas'], ['EL', 'Elétrica'], ['HS', 'Hidro']];
+const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'Painéis'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura'], ['PL', 'Placas']];  // + ['EL', 'Elétrica'], ['HS', 'Hidro'] quando voltarem
 // Elétrica: os painéis PV1 ficam apagados de referência; treliças, cobertura e placas somem.
 const NIVEL = { PV1: 0, EL: 0.5, HS: 0.5, PV2: 1, TS: 1, LJ1: 1, TR: 2, PL: 3 };
 // A laje da caixa d'água fica na camada Cobertura (junto com os painéis TR).
