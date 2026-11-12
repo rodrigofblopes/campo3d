@@ -305,7 +305,8 @@ const MODELOS = [
   { url:'modelos/cobertura-tr-r1.glb', grupo:'TR'  },  // "3D Cobertura.glb": 12 painéis TR, numerados pela posição na M08
   { url:'modelos/laje-lj1-r1.glb',     grupo:'LJ1' },
   { url:'modelos/placas-externas-r1.glb', grupo:'PL', cor:'#efe6d2' },
-  { url:'modelos/eletrica-r1.glb', grupo:'EL', ref:true },  // projeto elétrico (pranchas ALT-01-26-NLE-DPJ-ELE 01 a 05) em 3D: eletrodutos e pontos  // plaqueamento externo Glasroc-X: Marca = código da placa (FR-01…), 367 peças  // "3D Cobertura.glb": laje da caixa d'água LJ1
+  { url:'modelos/eletrica-r1.glb', grupo:'EL', ref:true },  // projeto elétrico (pranchas ELE 01 a 05)
+  { url:'modelos/hidrossanitario-r1.glb', grupo:'HS', ref:true },  // água fria, esgoto, pluvial, ventilação e climatização (pranchas CHI, ETE, SAC)  // projeto elétrico (pranchas ALT-01-26-NLE-DPJ-ELE 01 a 05) em 3D: eletrodutos e pontos  // plaqueamento externo Glasroc-X: Marca = código da placa (FR-01…), 367 peças  // "3D Cobertura.glb": laje da caixa d'água LJ1
 ];
 const ST = [
   { n:'Não iniciado', c:'#b8c1cc' },
@@ -362,9 +363,9 @@ function normCode(s){
 const rotulo = (code) => code.replace(/^PV1-/, '');
 // Camadas: ver tudo, ou só uma. As de cima da escolhida somem (o telhado não tapa o PV1);
 // as outras ficam apagadas, só de referência, e não respondem ao toque.
-const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'Painéis'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura'], ['PL', 'Placas'], ['EL', 'Elétrica']];
+const CAMADAS = [['tudo', 'Tudo'], ['PV1', 'Painéis'], ['PV2', 'Treliças'], ['TS', 'Tesouras'], ['TR', 'Cobertura'], ['PL', 'Placas'], ['EL', 'Elétrica'], ['HS', 'Hidro']];
 // Elétrica: os painéis PV1 ficam apagados de referência; treliças, cobertura e placas somem.
-const NIVEL = { PV1: 0, EL: 0.5, PV2: 1, TS: 1, LJ1: 1, TR: 2, PL: 3 };
+const NIVEL = { PV1: 0, EL: 0.5, HS: 0.5, PV2: 1, TS: 1, LJ1: 1, TR: 2, PL: 3 };
 // A laje da caixa d'água fica na camada Cobertura (junto com os painéis TR).
 const camadaDe = (g) => (g === 'LJ1' ? 'TR' : g);
 // Abas da lista (lupa): a aba Cobertura mostra os 12 painéis TR e a laje LJ1 juntos, como a aba "Cobertura" da planilha.
@@ -718,7 +719,7 @@ new ResizeObserver(resize).observe(view); resize();
 
 const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
 function addModelo(gltf, M){
-  if (M.ref) return addEletrica(gltf);
+  if (M.ref) return addRef(gltf, M.grupo);
   const root = gltf.scene; scene.add(root); root.updateMatrixWorld(true);
   // Cada nó filho do rootNode é um elemento do Revit (ou uma tesoura inteira); Marca = código da peça.
   const top = root.children[0]?.children?.length ? root.children[0].children : root.children;
@@ -772,59 +773,70 @@ function addModelo(gltf, M){
   MODELOS.forEach((M, i) => loader.load(M.url,
     (gltf) => { addModelo(gltf, M); fim(); },
     (ev) => { prog[i] = { l: ev.loaded, t: ev.total || ev.loaded }; mostrar(); },
-    (err) => { console.error(M.url, err); falhas.push(GRUPOS.find((g) => g.id === M.grupo)?.nome || 'Elétrica'); fim(); }));
+    (err) => { console.error(M.url, err); falhas.push(GRUPOS.find((g) => g.id === M.grupo)?.nome || (M.grupo === 'HS' ? 'Hidrossanitário' : 'Elétrica')); fim(); }));
 })();
 
-/* ================= Elétrica (projeto elétrico em 3D) =================
-   eletrica-r1.glb: eletrodutos por sistema (teto a 3,15 m, piso, descidas até cada ponto) e os pontos
-   (tomadas, interruptores, RJ45, luminárias, quadros, caixas) na altura da legenda das pranchas.
-   Só aparece na camada Elétrica; tocar num ponto mostra tipo e altura. */
-const EL_SIS = [
-  { id:'Elétrica', c:'#f28c28' }, { id:'Rede estabilizada', c:'#d81b60' }, { id:'Lógica (CAT6)', c:'#1e88e5' }, { id:'piso', n:'Eletrodutos de piso', c:'#6b6b6b' },
-];
-const EL_PTS = [
-  ['Tomada baixa · 0,30 m', '#ffd400'], ['Tomada média · 1,20 m', '#22b14c'], ['Tomada alta · 2,20 m', '#e53935'],
-  ['Interruptor · 1,20 m', '#8e44ad'], ['RJ45 (lógica)', '#0d47a1'], ['Painel LED · forro', '#e6f5d8'],
-  ['Emergência · 2,20 m', '#212121'], ['Quadros QD/QT/QM', '#455a64'], ['Caixas de passagem', '#795548'],
-];
-const EL_PRANCHAS = [['ELE-01', 'Planta elétrica'], ['ELE-04', 'Rede estabilizada'], ['ELE-05', 'Rede CAT6'], ['ELE-02', 'Unifilar QD1'], ['ELE-03', 'Unifilar QD2']];
-let elRoot = null, elSel = null, elOff = new Set(ls.get('amaggi-el-off', []));
-const elPick = [], elTubos = [];
-const matElHi = new THREE.MeshStandardMaterial({ color: '#ff7a00', emissive: new THREE.Color('#ff6a00'), emissiveIntensity: .7 });
-function addEletrica(gltf){
-  elRoot = gltf.scene; scene.add(elRoot); elRoot.visible = false;
-  elRoot.traverse((o) => {
+/* ================= Projetos complementares em 3D (camadas Elétrica e Hidro) =================
+   eletrica-r1.glb e hidrossanitario-r1.glb: tubos/eletrodutos por sistema e as peças na altura das pranchas.
+   Cada um só aparece na sua camada; os painéis PV1 ficam apagados de referência; tocar numa peça mostra o que é e a altura. */
+const REF = {
+  EL: {
+    nome: 'Elétrica', unid: 'pontos',
+    sis: [{ id:'Elétrica', c:'#f28c28' }, { id:'Rede estabilizada', c:'#d81b60' }, { id:'Lógica (CAT6)', c:'#1e88e5' }, { id:'piso', n:'Eletrodutos de piso', c:'#6b6b6b' }],
+    key: [['Tomada baixa · 0,30 m', '#ffd400'], ['Tomada média · 1,20 m', '#22b14c'], ['Tomada alta · 2,20 m', '#e53935'], ['Interruptor · 1,20 m', '#8e44ad'], ['RJ45 (lógica)', '#0d47a1'], ['Painel LED · forro', '#e6f5d8'], ['Emergência · 2,20 m', '#212121'], ['Quadros QD/QT/QM', '#455a64'], ['Caixas de passagem', '#795548']],
+    pranchas: [['ELE-01', 'Planta elétrica'], ['ELE-04', 'Rede estabilizada'], ['ELE-05', 'Rede CAT6'], ['ELE-02', 'Unifilar QD1'], ['ELE-03', 'Unifilar QD2']],
+    tubo: (x) => x.tipo === 'eletroduto',
+    chave: (x) => (x.tipo === 'eletroduto' && x.nivel === 'piso' ? 'piso' : x.sistema),
+    titulo: (x) => x.tipo, sub: (x) => [x.altura && `<b style="color:var(--text)">${esc(x.altura)}</b>`, esc(x.sistema || ''), x.dim && `${esc(x.dim)} mm`].filter(Boolean).join(' · '),
+  },
+  HS: {
+    nome: 'Hidro', unid: 'peças',
+    sis: [{ id:'Água fria', c:'#1e63d6' }, { id:'Alimentação', c:'#22c55e' }, { id:'Esgoto', c:'#2e7d32' }, { id:'Esgoto (gordura)', c:'#a3a31a' }, { id:'Pluvial', c:'#29b6f6' }, { id:'Ventilação', c:'#8d6e63' }, { id:'Climatização', c:'#ff8a00' }],
+    key: [['Ramais de água a 0,80 m', '#1e63d6'], ['Registro de gaveta · 1,80 m', '#ffb300'], ['Ponto de água (ver isométrico)', '#00b8d4'], ["Caixas d'água 1000 L", '#1565c0'], ['Caixas de esgoto (CE / CG)', '#6d4c41'], ['Fossa, filtro e sumidouro', '#8d6e63'], ['Evaporadora · Condensadora', '#00838f']],
+    pranchas: [['HS-AF1', 'Água fria (planta)'], ['HS-AF2', 'Isométricos HID-1 a 5'], ['HS-AF3', 'Isométricos HID-6 a 8'], ['HS-AF4', "Cobertura / caixa d'água"], ['HS-ES1', 'Esgoto (planta)'], ['HS-ES2', 'Detalhes sanitários'], ['HS-ES3', 'Pluvial (cobertura)'], ['HS-AC', 'Climatização']],
+    tubo: (x) => x.tipo === 'tubo',
+    chave: (x) => x.sistema || ({ 'Coluna de água fria':'Água fria', 'Registro':'Água fria', 'Ponto de água':'Água fria', 'Reservatório':'Água fria', 'Coluna de ventilação':'Ventilação', 'Coluna pluvial':'Pluvial', 'Calha':'Pluvial', 'Caixa de esgoto':'Esgoto', 'Fossa / filtro / sumidouro':'Esgoto', 'Ar-condicionado':'Climatização' })[x.tipo] || 'Água fria',
+    titulo: (x) => x.nome || x.tipo,
+    sub: (x) => [x.altura && `<b style="color:var(--text)">${esc(x.altura)}</b>`, x.detalhe && `isométrico ${esc(x.detalhe)}`, x.coluna && `coluna ${esc(x.coluna)}`].filter(Boolean).join(' · ') || esc(x.tipo || ''),
+  },
+};
+for (const k in REF) Object.assign(REF[k], { root: null, pick: [], tubos: [], off: new Set(ls.get('amaggi-off-' + k, [])) });
+let refSel = null;
+const matRefHi = new THREE.MeshStandardMaterial({ color: '#ff7a00', emissive: new THREE.Color('#ff6a00'), emissiveIntensity: .7, side: THREE.DoubleSide });
+function addRef(gltf, g){
+  const R = REF[g]; R.root = gltf.scene; scene.add(R.root); R.root.visible = false;
+  R.root.traverse((o) => {
     if (!o.isMesh) return;
     const x = o.userData?.tipo ? o.userData : (o.parent?.userData || {});
-    o.material.side = THREE.DoubleSide; o.userData.el = x; o.userData.orig = o.material;
-    if (x.tipo === 'eletroduto') elTubos.push(o); else elPick.push(o);
+    o.material.side = THREE.DoubleSide; o.userData.el = x; o.userData.orig = o.material; o.userData.ref = g;
+    (R.tubo(x) ? R.tubos : R.pick).push(o);
   });
+  if (camada === g) { pintarRefs(); renderLegenda(); }
 }
-const elChave = (x) => (x.tipo === 'eletroduto' && x.nivel === 'piso' ? 'piso' : x.sistema);
-function pintarEletrica(){
-  if (!elRoot) return;
-  elRoot.visible = camada === 'EL';
-  [...elTubos, ...elPick].forEach((m) => {
-    const x = m.userData.el; m.visible = !elOff.has(elChave(x));
-    m.material = m === elSel ? matElHi : m.userData.orig;
-  });
+function pintarRefs(){
+  for (const g in REF) {
+    const R = REF[g]; if (!R.root) continue;
+    R.root.visible = camada === g;
+    [...R.tubos, ...R.pick].forEach((m) => { m.visible = !R.off.has(R.chave(m.userData.el)); m.material = m === refSel ? matRefHi : m.userData.orig; });
+  }
 }
-function legendaEletrica(){
-  const n = elPick.length;
-  return `<button class="lh" id="lg-h"><span>Elétrica · ${n} pontos</span><span>${$('legend').classList.contains('min') ? '▸' : '▾'}</span></button>` +
-    EL_SIS.map((s) => `<button class="chip ${elOff.has(s.id) ? '' : 'on'}" data-sis="${s.id}"><span class="sw" style="background:${s.c};height:4px;border-radius:2px"></span>${s.n || s.id}<span class="n">${elOff.has(s.id) ? 'oculto' : ''}</span></button>`).join('') +
-    `<div class="el-key">${EL_PTS.map(([t, c]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')}</div>`;
+const pintarEletrica = pintarRefs;
+function legendaRef(g){
+  const R = REF[g];
+  return `<button class="lh" id="lg-h"><span>${R.nome} · ${R.pick.length} ${R.unid}</span><span>${$('legend').classList.contains('min') ? '▸' : '▾'}</span></button>` +
+    R.sis.map((s) => `<button class="chip ${R.off.has(s.id) ? '' : 'on'}" data-sis="${s.id}"><span class="sw" style="background:${s.c};height:4px;border-radius:2px"></span>${s.n || s.id}<span class="n">${R.off.has(s.id) ? 'oculto' : ''}</span></button>`).join('') +
+    `<div class="el-key">${R.key.map(([t, c]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')}</div>`;
 }
-function selEletrica(m){
-  elSel = m; pintarEletrica();
+function selRef(m){
+  refSel = m; pintarRefs();
   const sh = $('sheet');
   if (!m) { sh.hidden = true; return; }
-  const x = m.userData.el;
+  const x = m.userData.el, R = REF[m.userData.ref];
   sh.classList.remove('mini');
-  sh.innerHTML = `<div class="sh-head"><div><h2>${esc(x.tipo)}</h2><div class="sub"><b style="color:var(--text)">${esc(x.altura || '')}</b> · ${esc(x.sistema || '')}${x.dim ? ` · ${esc(x.dim)} mm` : ''}</div></div><span class="sp"></span><button class="x" id="sh-x" aria-label="Fechar">×</button></div>
-    <div class="facts" style="flex-wrap:wrap;gap:6px">${EL_PRANCHAS.map(([c, t]) => `<button class="btn" data-pr="${c}" style="flex:none;padding:8px 10px">${ICON_PDF}${t}</button>`).join('')}</div>`;
+  sh.innerHTML = `<div class="sh-head"><div><h2>${esc(R.titulo(x))}</h2><div class="sub">${R.sub(x)}</div></div><span class="sp"></span><button class="x" id="sh-x" aria-label="Fechar">×</button></div>
+    <div class="facts" style="flex-wrap:wrap;gap:6px">${R.pranchas.map(([c, t]) => `<button class="btn" data-pr="${c}" style="flex:none;padding:8px 10px">${ICON_PDF}${t}</button>`).join('')}</div>`;
   sh.hidden = false;
-  $('sh-x').onclick = () => selEletrica(null);
+  $('sh-x').onclick = () => selRef(null);
   sh.querySelectorAll('[data-pr]').forEach((b) => b.onclick = () => abrirPrancha(b.dataset.pr));
 }
 
@@ -845,7 +857,7 @@ function marcarContorno(code){
   });
 }
 function pintar(){
-  pintarEletrica();
+  pintarRefs();
   paineis.forEach((p) => {
     const e = etapa(p.code), modo = modoCamada(p.grupo);
     p.obj.visible = modo !== 'off';
@@ -915,7 +927,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  if (camada === 'EL') { const h = ray.intersectObjects(elPick.filter((m) => m.visible), false)[0]; selEletrica(h ? h.object : null); return; }
+  if (REF[camada]) { const h = ray.intersectObjects(REF[camada].pick.filter((m) => m.visible), false)[0]; selRef(h ? h.object : null); return; }
   const vis = alvoPick.filter((m) => modoCamada(PECA[m.userData.code].grupo) === 'on' && passa(m.userData.code));
   const hit = ray.intersectObjects(vis, false)[0];
   if (hit) selecionar(hit.object.userData.code, false); else fecharSheet();
@@ -972,10 +984,11 @@ function renderLegenda(){
   lg.classList.toggle('filtering', filtro != null || !!filtroDia);
   const nomeCam = CAMADAS.find((x) => x[0] === camada)[1];
   const segHtml = `<div class="seg" role="group" aria-label="Camadas">${CAMADAS.map(([id, n]) => `<button class="${camada === id ? 'on' : ''}" data-cam="${id}">${n}</button>`).join('')}</div>`;
-  if (camada === 'EL') {
+  if (REF[camada]) {
+    const R = REF[camada];
     lg.classList.remove('filtering');
-    lg.innerHTML = segHtml + legendaEletrica();
-    lg.querySelectorAll('.chip[data-sis]').forEach((b) => b.onclick = () => { const k = b.dataset.sis; elOff.has(k) ? elOff.delete(k) : elOff.add(k); ls.set('amaggi-el-off', [...elOff]); if (elSel && elOff.has(elChave(elSel.userData.el))) selEletrica(null); renderLegenda(); pintarEletrica(); });
+    lg.innerHTML = segHtml + legendaRef(camada);
+    lg.querySelectorAll('.chip[data-sis]').forEach((b) => b.onclick = () => { const k = b.dataset.sis; R.off.has(k) ? R.off.delete(k) : R.off.add(k); ls.set('amaggi-off-' + camada, [...R.off]); if (refSel && R.off.has(R.chave(refSel.userData.el))) selRef(null); renderLegenda(); pintarRefs(); });
     lg.querySelectorAll('.seg button').forEach((b) => b.onclick = () => trocarCamada(b.dataset.cam));
     $('lg-h').onclick = () => { lg.classList.toggle('min'); renderLegenda(); };
     return;
@@ -991,17 +1004,17 @@ function renderLegenda(){
 }
 function trocarCamada(c){
   camada = c; ls.set(LS.camada, camada);
-  if (camada !== 'EL' && elSel) selEletrica(null);
-  if (camada === 'EL' && sel) fecharSheet();
+  if (refSel && refSel.userData.ref !== camada) selRef(null);
+  if (REF[camada] && sel) fecharSheet();
   if (sel && paineis.has(sel) && modoCamada(PECA[sel].grupo) !== 'on') fecharSheet();
-  if (camada !== 'tudo' && camada !== 'EL') grupoAtivo = camada;
+  if (camada !== 'tudo' && !REF[camada]) grupoAtivo = camada;
   refresh(); declutter();
 }
 
 /* --- folha do painel --- */
 function selecionar(code, voarAte = true, manterFicha = false){
   if (code !== sel && !largarProblema()) return;
-  if (elSel) { elSel = null; pintarEletrica(); }
+  if (refSel) { refSel = null; pintarRefs(); }
   if (code !== sel && !manterFicha) shAberta = false;
   // peça de uma camada escondida ou apagada: passa para a camada dela
   if (paineis.has(code) && modoCamada(PECA[code].grupo) !== 'on') { camada = camadaDe(PECA[code].grupo); ls.set(LS.camada, camada); renderLegenda(); }
@@ -1018,7 +1031,7 @@ function vizinho(code, d){
 const ICON_PDF = '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
 const ICON_ALVO = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
 function renderSheet(){
-  const sh = $('sheet'); if (!sel) { if (!elSel) sh.hidden = true; return; }
+  const sh = $('sheet'); if (!sel) { if (!refSel) sh.hidden = true; return; }
   const code = sel, s = estado(code), e = s?.etapa ?? 0, p = paineis.get(code), g = GRUPOS.find((x) => x.id === PECA[code].grupo);
   const ST = stDe(PECA[code].grupo), pi = PLINFO[code];
   const meta = s && s.autor ? `${s.autor}<br>${quando(s.em, s.planilha)}${s.pend ? ' · na fila' : ''}` : 'sem marcação';
@@ -1081,7 +1094,7 @@ function renderSheet(){
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
 /* --- lista --- */
-let grupoAtivo = camada === 'tudo' || camada === 'EL' ? 'PV1' : camadaDe(camada);
+let grupoAtivo = camada === 'tudo' || REF[camada] ? 'PV1' : camadaDe(camada);
 const tem3D = (g) => !!GRUPOS.find((x) => x.id === g)?.tres;
 function renderLista(){
   if ($('list').hidden) return;
