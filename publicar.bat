@@ -23,6 +23,8 @@ if not exist "%PLANILHA%" set "PLANILHA=C:\Users\USUARIO\Desktop\Neto Lara\Amagg
 powershell -NoProfile -ExecutionPolicy Bypass -File "docs\planilha-paineis.ps1" -Planilha "%PLANILHA%"
 git add -A
 git commit -m "Atualizacao obra Amaggi"
+rem Traz o que foi publicado por outro computador (ex.: Claude) antes de enviar; em conflito vale a versao deste PC
+git pull --no-rebase --no-edit -X ours origin main
 git push origin main
 git log --oneline -3
 exit /b
